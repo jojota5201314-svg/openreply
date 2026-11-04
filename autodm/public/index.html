@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Jojo 自動私訊後台</title>
+<style>
+:root{--bg:#f6f4fa;--card:#fff;--ink:#2a2340;--sub:#6b6585;--line:#e4dff0;--pri:#5b4a8a;--pri2:#ede8f7;--ok:#2f7a4a;--okbg:#e3f1e1;--bad:#a33a2c;--badbg:#fbe3e1;--warn:#fff6c9}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Microsoft JhengHei","PingFang TC","Noto Sans TC",system-ui,sans-serif}
+header{background:var(--pri);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+header h1{font-size:18px;margin:0}
+header button{background:transparent;border:1px solid #fff8;color:#fff}
+main{max-width:920px;margin:0 auto;padding:16px}
+nav{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+nav button{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+nav button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+button{font:inherit;padding:8px 14px;border-radius:10px;border:1px solid var(--pri);background:var(--pri);color:#fff;cursor:pointer}
+button.ghost{background:#fff;color:var(--pri)}
+button.danger{background:#fff;color:var(--bad);border-color:var(--bad)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.muted{color:var(--sub);font-size:14px}
+label{display:block;font-weight:700;margin:12px 0 4px}
+label .muted{font-weight:400}
+input[type=text],input[type=password],input[type=number],textarea,select{width:100%;font:inherit;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+textarea{min-height:80px}
+.checks label{display:inline-flex;gap:6px;align-items:center;font-weight:400;margin:4px 14px 4px 0}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:13px;background:var(--pri2);color:var(--pri);margin:2px 4px 2px 0}
+.pill.ok{background:var(--okbg);color:var(--ok)}.pill.bad{background:var(--badbg);color:var(--bad)}.pill.off{background:#eee;color:#777}
+.btnrow{display:grid;grid-template-columns:120px 1fr 1fr 40px;gap:6px;margin-bottom:6px}
+.btnrow button{padding:4px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--sub);font-weight:400}
+.tablewrap{overflow-x:auto}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;display:none;max-width:90vw}
+.hint{background:var(--warn);border-radius:10px;padding:10px 12px;font-size:14px;margin:8px 0}
+details summary{cursor:pointer;color:var(--pri);margin-top:12px}
+h2{font-size:17px;margin:0 0 8px}
+ol{padding-left:20px}
+@media(max-width:600px){.btnrow{grid-template-columns:1fr 1fr}.btnrow input:nth-of-type(2){grid-column:1/3}}
+</style>
+</head>
+<body>
+<header><h1>Jojo 自動私訊後台</h1><button id="logoutBtn" hidden>登出</button></header>
+<main>
+  <section id="login" class="card" hidden>
+    <h2>登入</h2>
+    <label for="pw">後台密碼</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <div class="row" style="margin-top:12px"><button id="loginBtn">登入</button></div>
+  </section>
+
+  <div id="app" hidden>
+    <nav>
+      <button data-tab="rules" class="on">關鍵字規則</button>
+      <button data-tab="accounts">IG 帳號</button>
+      <button data-tab="logs">紀錄</button>
+      <button data-tab="help">怎麼用</button>
+    </nav>
+
+    <section id="tab-rules">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <span class="muted">有人留言、回覆限動或私訊打到關鍵字，就自動私訊資料。由上往下比，先對到的那條生效。</span>
+        <button id="newRule">＋ 新增規則</button>
+      </div>
+      <div id="ruleList"></div>
+      <div id="ruleEditor" class="card" hidden></div>
+    </section>
+
+    <section id="tab-accounts" hidden>
+      <div class="card">
+        <h2>已連上的 IG 帳號</h2>
+        <div id="accList" class="muted">讀取中…</div>
+        <div class="row" style="margin-top:12px"><a href="/api/instagram/connect"><button>＋ 連一個 IG 帳號</button></a></div>
+        <div class="hint">按下去會跳到 IG 登入頁，<b>帳號密碼你自己輸入</b>。三個帳號要各連一次：連完一個，先到 IG 登出、換另一個帳號，再回來按一次。</div>
+      </div>
+    </section>
+
+    <section id="tab-logs" hidden>
+      <div class="card">
+        <div class="row" style="justify-content:space-between"><h2>最近 200 筆</h2><button class="ghost" id="reloadLogs">重新整理</button></div>
+        <div class="tablewrap"><table><thead><tr><th>時間</th><th>帳號</th><th>類型</th><th>誰</th><th>內容</th><th>規則</th><th>結果</th></tr></thead><tbody id="logBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="tab-help" hidden>
+      <div class="card">
+        <h2>怎麼用</h2>
+        <ol>
+          <li>先到「IG 帳號」把三個帳號都連上。</li>
+          <li>到「關鍵字規則」按「新增規則」，填：關鍵字、要私訊的內容、要不要在留言底下公開回一句。</li>
+          <li>影片或限動裡說「留言『○○』我私訊給你」，關鍵字跟規則一樣就好。</li>
+          <li>用另一個帳號留言測一次，到「紀錄」看有沒有「已私訊」。</li>
+        </ol>
+        <h2>小提醒</h2>
+        <ul>
+          <li>IG 規定：每則留言只能私訊一次，而且要在留言後 7 天內。</li>
+          <li>「先送按鈕」：對方點了按鈕才送資料，比較不會被 IG 當成廣告，也比較能確定對方收到。</li>
+          <li>對方私訊你、或回覆你的限動後 24 小時內，才能主動私訊他。</li>
+          <li>紀錄出現「私訊失敗」時，把那一列截圖給 Claude 看。</li>
+          <li>IG 帳號的授權每 60 天會過期，系統每天會自動更新；如果紀錄出現「請重新連 IG」，就到「IG 帳號」再連一次。</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const TRIG = { comment: "留言", story: "限動回覆", dm: "私訊" };
+let accounts = [], rules = [];
+
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = "none"), 3500); }
+async function api(path, opts = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && path !== "/api/admin/login") { showLogin(); throw new Error("請先登入"); }
+  if (!res.ok) throw new Error(data.error || "出錯了");
+  return data;
+}
+function showLogin() { $("#login").hidden = false; $("#app").hidden = true; $("#logoutBtn").hidden = true; }
+async function start() {
+  const { loggedIn } = await api("/api/admin/login");
+  if (!loggedIn) return showLogin();
+  $("#login").hidden = true; $("#app").hidden = false; $("#logoutBtn").hidden = false;
+  const p = new URLSearchParams(location.search);
+  if (p.get("connected")) { toast(`已連上 @${p.get("connected")}`); tab("accounts"); }
+  if (p.get("connect")) { toast({ cancel: "你取消了授權", expired: "連線逾時，請再按一次", fail: "連 IG 失敗，到「紀錄」看原因" }[p.get("connect")] || "連線沒有完成"); tab("accounts"); }
+  if (p.toString()) history.replaceState(null, "", "/");
+  await loadAccounts(); await loadRules();
+}
+$("#loginBtn").onclick = async () => {
+  try { await api("/api/admin/login", { method: "POST", body: { password: $("#pw").value } }); $("#pw").value = ""; start(); }
+  catch (e) { toast(e.message); }
+};
+$("#pw").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#loginBtn").click(); });
+$("#logoutBtn").onclick = async () => { await api("/api/admin/login", { method: "POST", body: { logout: true } }); showLogin(); };
+
+function tab(name) {
+  document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === name));
+  ["rules", "accounts", "logs", "help"].forEach((t) => ($("#tab-" + t).hidden = t !== name));
+  if (name === "logs") loadLogs();
+}
+document.querySelectorAll("nav button").forEach((b) => (b.onclick = () => tab(b.dataset.tab)));
+
+async function loadAccounts() {
+  accounts = (await api("/api/admin/accounts")).accounts;
+  $("#accList").innerHTML = accounts.length ? accounts.map((a) => {
+    const days = a.token_expires ? Math.round((new Date(a.token_expires) - Date.now()) / 864e5) : null;
+    return `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:8px 0">
+      <div><b>@${esc(a.username)}</b> <span class="pill ${a.subscribed ? "ok" : "bad"}">${a.subscribed ? "已開通知" : "通知沒開"}</span>
+      <span class="muted">授權還有 ${days ?? "?"} 天（會自動更新）</span></div>
+      <button class="danger" data-del="${esc(a.ig_id)}">移除</button></div>`;
+  }).join("") : "還沒連任何帳號";
+  document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
+    if (!confirmBox(`確定移除這個帳號？移除後這個帳號的留言不會再自動私訊。`)) return;
+    await api("/api/admin/accounts", { method: "DELETE", body: { ig_id: b.dataset.del } }); toast("已移除"); loadAccounts();
+  }));
+}
+function confirmBox(msg) { return window.confirm(msg); }
+
+async function loadRules() {
+  rules = (await api("/api/admin/rules")).rules;
+  const accName = (id) => (accounts.find((a) => a.ig_id === id) || {}).username;
+  $("#ruleList").innerHTML = rules.length ? rules.map((r) => `
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <div><b>${esc(r.name)}</b> ${r.active ? '<span class="pill ok">啟用中</span>' : '<span class="pill off">暫停</span>'}
+        <span class="muted">#${r.id}・順序 ${r.sort}</span></div>
+        <div class="row"><button class="ghost" data-edit="${r.id}">編輯</button><button class="danger" data-rm="${r.id}">刪除</button></div>
+      </div>
+      <div style="margin-top:6px">${r.triggers.split(",").map((t) => `<span class="pill">${TRIG[t] || t}</span>`).join("")}
+        <span class="pill">${r.account_ig_id ? "@" + esc(accName(r.account_ig_id) || r.account_ig_id) : "全部帳號"}</span>
+        <span class="muted">關鍵字：${esc(r.keywords)}（${r.match_mode === "exact" ? "完全一樣" : "包含就算"}）</span></div>
+      <div class="muted" style="margin-top:4px">私訊：${esc(String(r.dm_text).slice(0, 80))}${String(r.dm_text).length > 80 ? "…" : ""}</div>
+    </div>`).join("") : '<div class="card muted">還沒有規則，按右上「新增規則」。</div>';
+  document.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => edit(rules.find((r) => r.id == b.dataset.edit))));
+  document.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = async () => {
+    if (!confirmBox("確定刪除這條規則？")) return;
+    await api("/api/admin/rules", { method: "DELETE", body: { id: b.dataset.rm } }); toast("已刪除"); loadRules();
+  }));
+}
+$("#newRule").onclick = () => edit(null);
+
+function buttonRow(b = { type: "url", title: "", url: "" }) {
+  const others = rules.map((r) => `<option value="${r.id}" ${b.rule_id == r.id ? "selected" : ""}>#${r.id} ${esc(r.name)}</option>`).join("");
+  const div = document.createElement("div"); div.className = "btnrow";
+  div.innerHTML = `<select class="bt"><option value="url" ${b.type !== "postback" ? "selected" : ""}>開連結</option><option value="postback" ${b.type === "postback" ? "selected" : ""}>接下一條規則</option></select>
+    <input type="text" class="btitle" placeholder="按鈕文字（20 字內）" maxlength="20" value="${esc(b.title)}">
+    <input type="text" class="burl" placeholder="https://…" value="${esc(b.url || "")}" ${b.type === "postback" ? "hidden" : ""}>
+    <select class="brule" ${b.type === "postback" ? "" : "hidden"}>${others}</select>
+    <button class="danger brm" title="移除">✕</button>`;
+  $(".bt", div).onchange = (e) => { const pb = e.target.value === "postback"; $(".burl", div).hidden = pb; $(".brule", div).hidden = !pb; };
+  $(".brm", div).onclick = () => div.remove();
+  return div;
+}
+
+function edit(r) {
+  const isNew = !r;
+  r = r || { name: "", account_ig_id: "", triggers: "comment", keywords: "", match_mode: "contains", media_id: "", public_replies: "", opener_text: "", opener_button: "", dm_text: "", buttons: [], active: true, sort: 100 };
+  const t = r.triggers.split(",");
+  const box = $("#ruleEditor"); box.hidden = false;
+  box.innerHTML = `<h2>${isNew ? "新增規則" : "編輯規則 #" + r.id}</h2>
+    <label>規則名稱 <span class="muted">只有你看得到，例：塔羅指引</span></label><input type="text" id="f_name" value="${esc(r.name)}">
+    <label>哪個帳號</label><select id="f_acc"><option value="">全部帳號</option>${accounts.map((a) => `<option value="${esc(a.ig_id)}" ${a.ig_id === r.account_ig_id ? "selected" : ""}>@${esc(a.username)}</option>`).join("")}</select>
+    <label>什麼時候觸發</label><div class="checks">
+      ${Object.entries(TRIG).map(([k, v]) => `<label><input type="checkbox" class="f_trig" value="${k}" ${t.includes(k) ? "checked" : ""}> ${v}</label>`).join("")}</div>
+    <label>關鍵字 <span class="muted">可以填好幾個，用逗號隔開，例：指引, 我要指引</span></label><input type="text" id="f_kw" value="${esc(r.keywords)}">
+    <label>比對方式</label><select id="f_mode"><option value="contains" ${r.match_mode !== "exact" ? "selected" : ""}>包含就算（留言「我要指引」也會觸發）</option><option value="exact" ${r.match_mode === "exact" ? "selected" : ""}>要完全一樣</option></select>
+    <label>留言底下公開回一句 <span class="muted">選填；一行一句，系統隨機挑一句，看起來比較不像機器人</span></label><textarea id="f_pub" placeholder="私訊你囉，記得去收！&#10;已經傳給你了 💌">${esc(r.public_replies)}</textarea>
+    <label>私訊內容 <span class="muted">有按鈕時最多 640 字</span></label><textarea id="f_dm" style="min-height:120px" placeholder="嗨！這是你要的塔羅指引 🔮">${esc(r.dm_text)}</textarea>
+    <label>按鈕 <span class="muted">選填，最多 3 個：開連結，或接到下一條規則（像 ManyChat 的流程）</span></label>
+    <div id="f_btns"></div><button class="ghost" id="addBtn">＋ 加按鈕</button>
+    <details ${r.opener_text ? "open" : ""}><summary>進階：先送一顆按鈕，對方點了才送資料（建議）</summary>
+      <div class="hint">留言觸發時，先送開場訊息＋一顆按鈕；對方點了按鈕，才送上面的私訊內容。比較不會被當廣告，也能確定對方有看到。</div>
+      <label>開場訊息</label><textarea id="f_open" placeholder="嗨！謝謝你留言，點下面按鈕拿資料 👇">${esc(r.opener_text)}</textarea>
+      <label>按鈕文字</label><input type="text" id="f_openbtn" maxlength="20" placeholder="給我資料" value="${esc(r.opener_button)}">
+    </details>
+    <details ${r.media_id ? "open" : ""}><summary>進階：只限某一篇貼文、排序</summary>
+      <label>貼文編號 <span class="muted">空白＝所有貼文都適用；要限定時把紀錄裡的貼文編號貼過來</span></label><input type="text" id="f_media" value="${esc(r.media_id || "")}">
+      <label>順序 <span class="muted">數字小的先比</span></label><input type="number" id="f_sort" value="${esc(r.sort)}">
+    </details>
+    <label class="checks"><label><input type="checkbox" id="f_active" ${r.active ? "checked" : ""}> 啟用這條規則</label></label>
+    <div class="row" style="margin-top:12px"><button id="saveRule">儲存</button><button class="ghost" id="cancelRule">取消</button></div>`;
+  const btns = typeof r.buttons === "string" ? JSON.parse(r.buttons) : r.buttons || [];
+  btns.forEach((b) => $("#f_btns").appendChild(buttonRow(b)));
+  $("#addBtn").onclick = () => { if ($("#f_btns").children.length >= 3) return toast("最多 3 個按鈕"); $("#f_btns").appendChild(buttonRow()); };
+  $("#cancelRule").onclick = () => (box.hidden = true);
+  $("#saveRule").onclick = async () => {
+    const body = {
+      id: isNew ? undefined : r.id, name: $("#f_name").value, account_ig_id: $("#f_acc").value,
+      triggers: [...document.querySelectorAll(".f_trig:checked")].map((c) => c.value),
+      keywords: $("#f_kw").value, match_mode: $("#f_mode").value, public_replies: $("#f_pub").value, dm_text: $("#f_dm").value,
+      opener_text: $("#f_open").value, opener_button: $("#f_openbtn").value, media_id: $("#f_media").value, sort: $("#f_sort").value,
+      active: $("#f_active").checked,
+      buttons: [...$("#f_btns").children].map((d) => ({ type: $(".bt", d).value, title: $(".btitle", d).value, url: $(".burl", d).value, rule_id: $(".brule", d).value })),
+    };
+    try { await api("/api/admin/rules", { method: "POST", body }); toast("已儲存"); box.hidden = true; loadRules(); }
+    catch (e) { toast(e.message); }
+  };
+  box.scrollIntoView({ behavior: "smooth" });
+}
+
+async function loadLogs() {
+  const { logs } = await api("/api/admin/logs");
+  $("#logBody").innerHTML = logs.length ? logs.map((l) => {
+    const bad = /失敗|錯誤|擋下|沒連/.test(l.status || ""), good = /已私訊|已公開|已連上/.test(l.status || "");
+    return `<tr><td>${esc(new Date(l.created_at).toLocaleString("zh-TW", { hour12: false }))}</td><td>${esc(l.account_name ? "@" + l.account_name : "")}</td>
+      <td>${esc(l.kind)}</td><td>${esc(l.from_name ? "@" + l.from_name : l.from_id || "")}</td><td>${esc(l.text)}</td><td>${esc(l.rule_name || "")}</td>
+      <td><span class="pill ${bad ? "bad" : good ? "ok" : ""}">${esc(l.status)}</span>${l.detail ? `<div class="muted">${esc(l.detail)}</div>` : ""}</td></tr>`;
+  }).join("") : '<tr><td colspan="7" class="muted">還沒有紀錄</td></tr>';
+}
+$("#reloadLogs").onclick = loadLogs;
+start().catch((e) => toast(e.message));
+</script>
+</body>
+</html>
