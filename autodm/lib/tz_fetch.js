@@ -63,23 +63,35 @@ async function douyinId(url) {
   }
   return "";
 }
+const SPIDER_UAS = [
+  "Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)",
+  "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+];
 async function douyinPage(id, dbg) {
-  for (const kind of ["video", "note"]) {
-    const r = await fetch(`https://www.iesdouyin.com/share/${kind}/${id}/`, { headers: { "User-Agent": MOBILE_UA, Referer: "https://www.douyin.com/", "Accept-Language": "zh-CN,zh;q=0.9" } });
-    const html = await r.text();
-    dbg.push(`${kind}:${r.status}:${html.length}`);
-    const m = html.match(/window\._ROUTER_DATA\s*=\s*(\{[\s\S]*?\})\s*<\/script>/);
-    if (!m) { dbg.push("no_router"); continue; }
-    let data; try { data = JSON.parse(m[1]); } catch { dbg.push("bad_json"); continue; }
-    for (const pg of Object.values(data.loaderData || {})) {
-      const it = pg?.videoInfoRes?.item_list?.[0];
-      if (it) return {
-        text: it.desc || "", author: it.author?.nickname || "",
-        images: [it.video?.cover?.url_list?.[0], ...(it.images || []).map((x) => x?.url_list?.[0])].filter(Boolean),
-        is_video: !it.images?.length,
-      };
+  for (const ua of [MOBILE_UA, ...SPIDER_UAS]) {
+    for (const kind of ["video", "note"]) {
+      const r = await fetch(`https://www.iesdouyin.com/share/${kind}/${id}/`, { headers: { "User-Agent": ua, Referer: "https://www.douyin.com/", "Accept-Language": "zh-CN,zh;q=0.9" } });
+      const html = await r.text();
+      dbg.push(`${ua.slice(25, 35)}/${kind}:${r.status}:${html.length}`);
+      const m = html.match(/window\._ROUTER_DATA\s*=\s*(\{[\s\S]*?\})\s*<\/script>/);
+      if (m) {
+        try {
+          const data = JSON.parse(m[1]);
+          for (const pg of Object.values(data.loaderData || {})) {
+            const it = pg?.videoInfoRes?.item_list?.[0];
+            if (it) return {
+              text: it.desc || "", author: it.author?.nickname || "",
+              images: [it.video?.cover?.url_list?.[0], ...(it.images || []).map((x) => x?.url_list?.[0])].filter(Boolean),
+              is_video: !it.images?.length,
+            };
+          }
+        } catch {}
+      }
+      const desc = meta(html, "description") || meta(html, "og:description");
+      const title = (html.match(/<title[^>]*>([^<]*)<\/title>/i) || [])[1] || "";
+      const t = decodeHtml(desc || title).replace(/\s*-\s*抖音\s*$/, "").trim();
+      if (t.length > 12 && !/^抖音/.test(t)) return { text: t, author: "", images: [meta(html, "og:image")].filter(Boolean), is_video: kind === "video" };
     }
-    dbg.push("no_item:" + JSON.stringify(Object.entries(data.loaderData || {}).map(([k, v]) => [k, Object.keys(v || {}), v?.videoInfoRes ? Object.keys(v.videoInfoRes) : null, v?.videoInfoRes?.filter_list])).slice(0, 600));
   }
   return null;
 }
