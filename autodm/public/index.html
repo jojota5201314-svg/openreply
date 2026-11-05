@@ -157,12 +157,16 @@ async function loadAccounts() {
       <span class="muted">授權還有 ${days ?? "?"} 天（會自動更新）</span></div>
       <button class="danger" data-del="${esc(a.ig_id)}">移除</button></div>`;
   }).join("") : "還沒連任何帳號";
-  document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
-    if (!confirmBox(`確定移除這個帳號？移除後這個帳號的留言不會再自動私訊。`)) return;
+  document.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => armThen(b, "移除後這個帳號不會再自動私訊", async () => {
     await api("/api/admin/accounts", { method: "DELETE", body: { ig_id: b.dataset.del } }); toast("已移除"); loadAccounts();
-  }));
+  })));
 }
-function confirmBox(msg) { return window.confirm(msg); }
+// Two-tap check (pop-up dialogs are blocked in some app browsers).
+function armThen(btn, hint, action) {
+  if (btn.dataset.armed) { delete btn.dataset.armed; return action().catch((e) => toast(e.message)); }
+  const orig = btn.textContent; btn.dataset.armed = "1"; btn.textContent = "再按一次確認"; toast(hint + "，確定的話再按一次");
+  setTimeout(() => { if (btn.isConnected && btn.dataset.armed) { delete btn.dataset.armed; btn.textContent = orig; } }, 4000);
+}
 
 async function loadRules() {
   rules = (await api("/api/admin/rules")).rules;
@@ -180,10 +184,9 @@ async function loadRules() {
       <div class="muted" style="margin-top:4px">私訊：${esc(String(r.dm_text).slice(0, 80))}${String(r.dm_text).length > 80 ? "…" : ""}</div>
     </div>`).join("") : '<div class="card muted">還沒有規則，按右上「新增規則」。</div>';
   document.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => edit(rules.find((r) => r.id == b.dataset.edit))));
-  document.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = async () => {
-    if (!confirmBox("確定刪除這條規則？")) return;
+  document.querySelectorAll("[data-rm]").forEach((b) => (b.onclick = () => armThen(b, "刪除後不能復原", async () => {
     await api("/api/admin/rules", { method: "DELETE", body: { id: b.dataset.rm } }); toast("已刪除"); loadRules();
-  }));
+  })));
 }
 $("#newRule").onclick = () => edit(null);
 
