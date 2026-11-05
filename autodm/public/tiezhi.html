@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>貼文整理小幫手</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="整理小幫手">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#2f6f62">
+<link rel="manifest" href="/tiezhi.webmanifest">
+<link rel="apple-touch-icon" href="/tiezhi-icon-180.png">
+<link rel="icon" href="/tiezhi-icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<style>
+/* 版面:像一本剪貼手帳。上方是書籤式分頁,內容是一張張收藏卡片;手機下方固定分頁列 */
+:root{
+  --bg:#f3f6f4; --paper:#ffffff; --ink:#1f2b2a; --muted:#5f6f6c; --line:#d8e1de;
+  --accent:#2f6f62; --accent-soft:#dcebe6; --mark:#e9b949; --mark-soft:#fbf0d2; --danger:#b4443a;
+  --f-display:"LXGW WenKai TC","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#151b1a; --paper:#1d2524; --ink:#e7eeec; --muted:#9aaba7; --line:#2f3a38;
+  --accent:#7cc4b2; --accent-soft:#23403a; --mark:#e9b949; --mark-soft:#3b331c; --danger:#e57b70; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151b1a; --paper:#1d2524; --ink:#e7eeec; --muted:#9aaba7; --line:#2f3a38;
+  --accent:#7cc4b2; --accent-soft:#23403a; --mark:#e9b949; --mark-soft:#3b331c; --danger:#e57b70; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.65}
+*{box-sizing:border-box}
+.wrap{max-width:860px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 110px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.3}
+h1{font-size:26px} h2{font-size:21px} h3{font-size:17px}
+a{color:var(--accent)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.top .sub{color:var(--muted);font-size:13px}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--paper);border-top:1px solid var(--line);
+  display:flex;justify-content:center;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+.tabs button{flex:1;max-width:130px;background:none;border:0;padding:6px 2px;border-radius:10px;color:var(--muted);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabs button b{font-size:19px;line-height:1;font-weight:400}
+.tabs button.on{color:var(--accent);background:var(--accent-soft)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:8px 16px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--paper);font-weight:700}
+.btn.small{padding:4px 12px;font-size:13px}
+.btn.danger{color:var(--danger)}
+.btn:disabled{opacity:.5;cursor:default}
+label.f{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input[type=text],input[type=number],input[type=date],select,textarea{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 11px}
+textarea{min-height:110px;resize:vertical}
+.muted{color:var(--muted)} .small{font-size:13px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:4px 12px;font-size:13px}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.chip i{font-style:normal;opacity:.6;margin-left:4px;font-variant-numeric:tabular-nums}
+.tag{display:inline-block;background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:1px 8px;font-size:12px}
+.tag.mark{background:var(--mark-soft);color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.post{display:flex;gap:12px;text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:12px;width:100%}
+.post .th{flex:0 0 64px;height:64px;border-radius:8px;background:var(--accent-soft);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px}
+.post .th img{width:100%;height:100%;object-fit:cover}
+.post .bd{min-width:0;display:flex;flex-direction:column;gap:4px}
+.post .tt{font-weight:700;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:16px;text-align:center;color:var(--muted)}
+.drop.hot{border-color:var(--accent);background:var(--accent-soft)}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.thumbs div{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.thumbs img{width:100%;height:100%;object-fit:cover}
+.thumbs button{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;border:0;background:var(--ink);color:var(--paper);font-size:11px;line-height:20px;padding:0}
+.job{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.job:first-child{border-top:0}
+.st-ok{color:var(--accent)} .st-err{color:var(--danger)}
+.modal{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,var(--ink) 45%,transparent);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:760px;max-height:92%;overflow:auto;border-radius:18px 18px 0 0;
+  padding:18px max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:760px){.modal{align-items:center}.sheet{border-radius:18px;max-height:88%}}
+.sheet-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+.x{border:0;background:var(--paper);border-radius:50%;width:34px;height:34px;flex:0 0 34px;font-size:16px}
+ul.clean{list-style:none;margin:0;padding:0}
+.ing li{display:flex;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.ing .q{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted)}
+.ing input{accent-color:var(--accent)}
+ol.steps{padding-left:22px;margin:6px 0} ol.steps li{margin:6px 0}
+.place{padding:10px 0;border-top:1px solid var(--line)} .place:first-child{border-top:0}
+.links{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;margin-top:4px}
+.daytabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.stop{display:grid;grid-template-columns:52px 1fr;gap:10px;padding:12px 0;border-top:1px solid var(--line)}
+.stop:first-child{border-top:0}
+.stop .tm{font-family:var(--f-display);font-size:16px;color:var(--accent);font-variant-numeric:tabular-nums}
+.stop .bd{min-width:0}
+.next{margin:6px 0 0;font-size:13px;color:var(--muted);background:var(--bg);border-radius:8px;padding:6px 10px}
+.saved{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--mark);margin-right:6px;vertical-align:middle}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--ink);color:var(--paper);padding:9px 16px;border-radius:999px;font-size:14px;max-width:90%}
+.empty{text-align:center;padding:30px 10px;color:var(--muted)}
+.empty b{display:block;font-family:var(--f-display);font-size:18px;color:var(--ink);margin-bottom:6px}
+.note{background:var(--mark-soft);border-radius:10px;padding:10px 12px;font-size:13px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.checkl label{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px dashed var(--line)}
+.checkl input{margin-top:5px;accent-color:var(--accent)}
+details summary{cursor:pointer;color:var(--accent)}
+@media (prefers-reduced-motion:no-preference){.post,.btn,.chip{transition:background .15s,border-color .15s}}
+
+.post .th{position:relative}
+.post .th img{position:absolute;inset:0;z-index:1}
+.post .th .ic{font-size:24px}
+.map{height:260px;border-radius:var(--r);border:1px solid var(--line);overflow:hidden;z-index:0}
+.pin span{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--paper);font-weight:700;font-size:13px;border:2px solid var(--paper);box-shadow:0 1px 4px rgb(0 0 0 / .3)}
+.stop .num{display:inline-flex;margin-top:4px;width:20px;height:20px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;align-items:center;justify-content:center;font-family:var(--f-body)}
+code{background:var(--accent-soft);padding:1px 6px;border-radius:4px}
+html,body{margin:0}
+</style></head><body>
+<div class="wrap" style="padding-top:max(18px, env(safe-area-inset-top, 0px))">
+  <div class="top"><h1>貼文整理小幫手</h1><span class="sub">IG・TikTok・抖音・小紅書・臉書的收藏,自動分類</span></div>
+  <main id="main"><div class="card empty"><b>讀取中…</b></div></main>
+</div>
+<nav class="tabs" id="tabs" hidden>
+  <button data-tab="add" class="on"><b>＋</b>新增</button>
+  <button data-tab="lib"><b>▤</b>收藏</button>
+  <button data-tab="recipe"><b>◔</b>食譜</button>
+  <button data-tab="trip"><b>✈</b>行程</button>
+  <button data-tab="set"><b>⚙</b>設定</button>
+</nav>
+<div id="modalRoot"></div><div id="toastRoot"></div>
+<script>
+const CATS = ["旅遊","餐廳美食","食譜","日常生活","穿搭美妝","健身運動","居家手作","知識學習","購物好物","其他"];
+const ICON = {"旅遊":"✈","餐廳美食":"🍜","食譜":"🍳","日常生活":"☀","穿搭美妝":"👗","健身運動":"💪","居家手作":"🪡","知識學習":"📖","購物好物":"🛍","其他":"📌"};
+const BUSY = ["排隊中","抓取中","待整理","AI 整理中"];
+const S = {tab:"add", posts:[], trips:[], loaded:false, filter:{cat:"",sub:"",place:"",q:""}, trip:null, day:0, tp:null};
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function toast(t){ const el=document.createElement("div"); el.className="toast"; el.textContent=t; $("#toastRoot").append(el); setTimeout(()=>el.remove(),2600); }
+async function api(path, opt={}){
+  const o={method:opt.method||"GET", headers:{}};
+  if(opt.body!==undefined){ o.headers["Content-Type"]="application/json"; o.body=JSON.stringify(opt.body); }
+  const r=await fetch(path,o); const d=await r.json().catch(()=>({}));
+  if(r.status===401){ showLogin(); throw new Error("請先登入"); }
+  if(!r.ok) throw new Error(d.error||("出錯了 "+r.status));
+  return d;
+}
+async function copy(text){ try{ await navigator.clipboard.writeText(text); toast("複製好了"); }catch{ openModal(`<div class="sheet-h"><h3>手動複製</h3><button class="x" data-close>✕</button></div><textarea style="min-height:260px">${esc(text)}</textarea>`); } }
+const isChina = c => /中國|中国|大陸|China/i.test(c||"");
+const gq = s => encodeURIComponent(s);
+function mapLinks(name, city, country){
+  const q=[name, city].filter(Boolean).join(" ");
+  let h=`<a href="https://www.google.com/maps/search/?api=1&query=${gq(q)}" target="_blank" rel="noopener">Google 地圖</a>`;
+  if(isChina(country)) h+=`<a href="https://uri.amap.com/search?keyword=${gq(name)}${city?`&city=${gq(city)}`:""}" target="_blank" rel="noopener">高德地圖</a>`;
+  return h;
+}
+
+// ---------- 登入 ----------
+function showLogin(){
+  $("#tabs").hidden=true;
+  $("#main").innerHTML=`<div class="card stack" style="max-width:420px;margin:30px auto"><h2>登入</h2><p class="small muted" style="margin:0">密碼跟自動私訊後台一樣。登入一次可以用 30 天。</p>
+  <input type="password" id="pw" placeholder="密碼" style="width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px"><button class="btn primary" id="lg">登入</button><div class="small st-err" id="lgMsg"></div></div>`;
+  $("#lg").onclick=async()=>{ const r=await fetch("/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:$("#pw").value})}); if(r.ok){ $("#tabs").hidden=false; boot(); } else $("#lgMsg").textContent="密碼不對"; };
+  $("#pw").onkeydown=e=>{ if(e.key==="Enter") $("#lg").click(); };
+}
+
+// ---------- 資料 ----------
+async function load(){
+  const [p,t]=await Promise.all([api("/api/tz/posts"), api("/api/tz/trips")]);
+  S.posts=p.posts; S.trips=t.trips; S.loaded=true;
+}
+let pollT=null;
+function schedulePoll(){
+  clearTimeout(pollT);
+  const busy=S.posts.some(p=>BUSY.includes(p.status)) || S.trips.some(t=>["生成中","修改中"].includes(t.status));
+  if(!busy) return;
+  pollT=setTimeout(async()=>{ try{ await load(); if(S.tab==="trip" && S.trip){ const t=S.trips.find(x=>x.id===S.trip.id); if(t && t.status!==S.trip.status) await openTrip(S.trip.id); } else if(!S.typing) render(); }catch{} schedulePoll(); }, 4000);
+}
+async function boot(){
+  const me=await fetch("/api/admin/login").then(r=>r.json()).catch(()=>({}));
+  if(!me.loggedIn) return showLogin();
+  $("#tabs").hidden=false;
+  try{ await load(); }catch(e){ toast(e.message); }
+  const h=(location.hash||"").slice(1); if(["add","lib","recipe","trip","set"].includes(h)) S.tab=h;
+  setTab(S.tab); schedulePoll();
+}
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden && S.loaded){ load().then(()=>{ if(!S.typing && !S.trip) render(); schedulePoll(); }).catch(()=>{}); } });
+
+// ---------- 畫面 ----------
+function setTab(t){ S.tab=t; S.trip=null; document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on", b.dataset.tab===t)); try{ history.replaceState(null,"","#"+t); }catch{} render(); window.scrollTo(0,0); }
+$("#tabs").onclick = e => { const b=e.target.closest("button"); if(b) setTab(b.dataset.tab); };
+function render(){ ({add:renderAdd, lib:renderLib, recipe:renderRecipes, trip:renderTrip, set:renderSet})[S.tab](); }
+
+function renderAdd(){
+  const busy=S.posts.filter(p=>BUSY.includes(p.status)||p.status==="失敗").slice(0,10);
+  const recent=S.posts.filter(p=>p.status==="完成").slice(0,4);
+  $("#main").innerHTML=`<div class="stack">
+  <div class="card stack">
+    <div><h2>收進一篇貼文</h2><p class="small muted" style="margin:4px 0 0">貼上 IG、TikTok、抖音、小紅書、臉書的連結就好。也可以一次貼好幾個連結。</p></div>
+    <textarea id="inText" placeholder="例如:https://www.instagram.com/reel/…&#10;抖音、小紅書的分享文字整段貼上也可以"></textarea>
+    <div class="row"><button class="btn primary" id="go">開始整理</button><span class="small muted">大約 30 秒~1 分鐘,可以先去做別的事</span></div>
+  </div>
+  ${busy.length?`<div class="card"><h3 style="margin-bottom:6px">整理進度</h3>${busy.map(p=>`<div class="job"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.title||p.url)}</span>
+    <span class="${p.status==="失敗"?"st-err":""}" style="white-space:nowrap">${esc(p.status)}${p.status==="失敗"?` <button class="btn small" data-retry="${p.id}">再試</button> <button class="btn small" data-open="${p.id}">看</button>`:""}</span></div>
+    ${p.error?`<div class="small st-err" style="padding-bottom:6px">${esc(p.error)}</div>`:""}`).join("")}</div>`:""}
+  ${recent.length?`<div><h3 style="margin-bottom:8px">最近收進來的</h3><div class="grid">${recent.map(postCard).join("")}</div></div>`:""}
+  </div>`;
+  const ta=$("#inText"); ta.value=S.draft||""; ta.oninput=()=>{ S.draft=ta.value; S.typing=true; }; ta.onblur=()=>{ S.typing=false; };
+  $("#go").onclick=async()=>{
+    const text=ta.value.trim(); if(!text){ toast("先貼上連結"); return; }
+    const b=$("#go"); b.disabled=true;
+    try{ await api("/api/tz/posts",{method:"POST",body:{text}}); S.draft=""; S.typing=false; toast("收到了,整理中"); await load(); renderAdd(); schedulePoll(); }
+    catch(e){ toast(e.message); b.disabled=false; }
+  };
+  bindCards();
+  $("#main").querySelectorAll("[data-retry]").forEach(b=>b.onclick=async()=>{ await api("/api/tz/post?id="+b.dataset.retry,{method:"POST",body:{full:true}}).catch(e=>toast(e.message)); await load(); renderAdd(); schedulePoll(); });
+}
+function bindCards(){ $("#main").querySelectorAll("[data-post],[data-open]").forEach(b=>b.onclick=()=>openPost(+(b.dataset.post||b.dataset.open))); }
+
+function counts(list,key){ const m={}; list.forEach(p=>{ const k=p[key]||""; if(k) m[k]=(m[k]||0)+1; }); return Object.entries(m).sort((a,b)=>b[1]-a[1]); }
+function renderLib(){
+  const F=S.filter; const all=S.posts.filter(p=>p.status==="完成"); let list=all;
+  const catList=CATS.map(c=>[c, all.filter(p=>p.category===c).length]).filter(x=>x[1]);
+  if(F.cat) list=list.filter(p=>p.category===F.cat);
+  const subs = F.cat==="旅遊" ? counts(list,"country") : counts(list,"subcategory");
+  if(F.sub) list=list.filter(p=>(F.cat==="旅遊"?p.country:p.subcategory)===F.sub);
+  const regions = F.cat==="旅遊" && F.sub ? counts(list,"region") : [];
+  if(F.place) list=list.filter(p=>p.region===F.place);
+  if(F.q){ const q=F.q.toLowerCase(); list=list.filter(p=>[p.title,p.summary,p.region,p.country,p.subcategory,(p.tags||[]).join(" "),(p.places||[]).map(x=>x.name).join(" ")].join(" ").toLowerCase().includes(q)); }
+  $("#main").innerHTML=`<div class="stack">
+    <div class="row" style="justify-content:space-between"><h2>收藏庫</h2><span class="small muted">共 ${all.length} 篇</span></div>
+    <input type="text" id="q" placeholder="搜尋:店名、地區、標籤…" value="${esc(F.q)}">
+    <div class="chips" id="cats"><button class="chip ${!F.cat?"on":""}" data-c="">全部<i>${all.length}</i></button>${catList.map(([c,n])=>`<button class="chip ${F.cat===c?"on":""}" data-c="${esc(c)}">${ICON[c]} ${esc(c)}<i>${n}</i></button>`).join("")}</div>
+    ${F.cat && subs.length?`<div class="chips" id="subs"><span class="small muted" style="align-self:center">${F.cat==="旅遊"?"國家":"細分"}</span>${subs.map(([s,n])=>`<button class="chip ${F.sub===s?"on":""}" data-s="${esc(s)}">${esc(s)}<i>${n}</i></button>`).join("")}</div>`:""}
+    ${regions.length?`<div class="chips" id="regs"><span class="small muted" style="align-self:center">地區</span>${regions.map(([s,n])=>`<button class="chip ${F.place===s?"on":""}" data-r="${esc(s)}">${esc(s)}<i>${n}</i></button>`).join("")}</div>`:""}
+    ${list.length?`<div class="grid">${list.map(postCard).join("")}</div>`:`<div class="card empty"><b>${all.length?"沒有符合的收藏":"還沒有收藏"}</b>${all.length?"換個分類或關鍵字看看。":"到「新增」貼上第一篇貼文的連結,整理好會出現在這裡。"}</div>`}
+  </div>`;
+  const q=$("#q"); q.oninput=()=>{ F.q=q.value; S.typing=true; clearTimeout(S.qt); S.qt=setTimeout(()=>{ renderLib(); const n=$("#q"); n.focus(); n.setSelectionRange(n.value.length,n.value.length); },350); }; q.onblur=()=>{ S.typing=false; };
+  $("#cats").onclick=e=>{ const b=e.target.closest("[data-c]"); if(b){ F.cat=b.dataset.c; F.sub=""; F.place=""; renderLib(); } };
+  $("#subs") && ($("#subs").onclick=e=>{ const b=e.target.closest("[data-s]"); if(b){ F.sub=F.sub===b.dataset.s?"":b.dataset.s; F.place=""; renderLib(); } });
+  $("#regs") && ($("#regs").onclick=e=>{ const b=e.target.closest("[data-r]"); if(b){ F.place=F.place===b.dataset.r?"":b.dataset.r; renderLib(); } });
+  bindCards();
+}
+function postCard(p){
+  const where=[p.country,p.region].filter(Boolean).join("・");
+  return `<button class="post" data-post="${p.id}"><span class="th">${p.thumb?`<img src="${esc(p.thumb)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">`:""}<span class="ic">${ICON[p.category]||"📌"}</span></span>
+  <span class="bd"><span class="tt">${esc(p.title)}</span>
+  <span class="row" style="gap:4px"><span class="tag">${esc(p.category)}</span>${p.subcategory?`<span class="tag mark">${esc(p.subcategory)}</span>`:""}</span>
+  <span class="small muted">${esc([p.platform, where].filter(Boolean).join(" · "))}</span></span></button>`;
+}
+
+function openModal(html){ $("#modalRoot").innerHTML=`<div class="modal" id="modal"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;
+  $("#modal").onclick=e=>{ if(e.target.id==="modal"||e.target.closest("[data-close]")) closeModal(); }; }
+function closeModal(){ $("#modalRoot").innerHTML=""; }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModal(); });
+function fmtQty(q,k){ if(q==null||q==="") return ""; const v=Number(q)*k; if(!isFinite(v)) return String(q); return String(v>=10?Math.round(v):Math.round(v*10)/10); }
+function recipeHtml(r,k){
+  const groups={}; (r.ingredients||[]).forEach(i=>{ (groups[i.group||"材料"] ||= []).push(i); });
+  return `<div class="card stack"><div class="row" style="justify-content:space-between"><h3>🍳 ${esc(r.dish||"食譜")}</h3><span class="small muted">${[r.type,r.time,r.difficulty].filter(Boolean).map(esc).join(" · ")}</span></div>
+    <div class="row"><span class="small">份量</span><button class="btn small" data-sv="-1" aria-label="少一人份">−</button><b style="font-variant-numeric:tabular-nums">${Math.round((r.servings||1)*k*10)/10} 人份</b><button class="btn small" data-sv="1" aria-label="多一人份">＋</button><button class="btn small" id="shop">複製購物清單</button></div>
+    ${Object.entries(groups).map(([g,list],gi)=>`<div><div class="small muted">${esc(g)}</div><ul class="clean ing">${list.map((i,n)=>`<li><input type="checkbox" id="ing_${gi}_${n}"><label for="ing_${gi}_${n}">${esc(i.name)}${i.note?` <span class="small muted">(${esc(i.note)})</span>`:""}</label><span class="q">${esc(fmtQty(i.qty,k))} ${esc(i.unit||"")}</span></li>`).join("")}</ul></div>`).join("")}
+    <div><div class="small muted">步驟</div><ol class="steps">${(r.steps||[]).map(s=>`<li>${esc(s)}</li>`).join("")}</ol></div>
+    ${(r.tips||[]).length?`<div class="note">💡 ${r.tips.map(esc).join("<br>💡 ")}</div>`:""}</div>`;
+}
+async function openPost(id){
+  let p; try{ p=await api("/api/tz/post?id="+id); }catch(e){ return toast(e.message); }
+  const d=p.data||{}, raw=p.raw||{}; let k=1;
+  const draw=()=>{
+    openModal(`<div class="sheet-h"><div><h2>${esc(p.title||"(整理中)")}</h2><div class="small muted">${esc([p.platform,raw.author,new Date(p.created).toLocaleDateString("zh-TW")].filter(Boolean).join(" · "))}</div></div><button class="x" data-close aria-label="關閉">✕</button></div>
+    <div class="stack">
+      ${p.status!=="完成"?`<div class="note">${esc(p.status)}${p.error?`:${esc(p.error)}`:""}</div>`:""}
+      <div class="row" style="gap:4px">${p.category?`<span class="tag">${esc(p.category)}</span>`:""}${p.subcategory?`<span class="tag mark">${esc(p.subcategory)}</span>`:""}${[p.country,p.region].filter(Boolean).map(x=>`<span class="tag">${esc(x)}</span>`).join("")}${(d.tags||[]).map(t=>`<span class="small muted">#${esc(t)}</span>`).join(" ")}</div>
+      ${d.summary?`<p style="margin:0">${esc(d.summary)}</p>`:""}
+      ${p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener" class="small">打開原本的貼文 ↗</a>`:""}
+      ${d.recipe?recipeHtml(d.recipe,k):""}
+      ${(d.places||[]).length?`<div class="card"><h3 style="margin-bottom:4px">📍 提到的地點</h3>${d.places.map(pl=>`<div class="place"><b>${esc(pl.name)}</b> <span class="small muted">${esc([pl.type,pl.city].filter(Boolean).join(" · "))}</span>
+        ${pl.address?`<div class="small">${esc(pl.address)}</div>`:""}${pl.note?`<div class="small muted">${esc(pl.note)}</div>`:""}<div class="links">${mapLinks(pl.name,pl.city||p.region,p.country)}</div></div>`).join("")}</div>`:""}
+      ${(d.key_points||[]).length?`<div class="card"><h3 style="margin-bottom:4px">重點</h3><ul style="margin:0;padding-left:20px">${d.key_points.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
+      ${raw.text?`<details class="card"><summary>原本的文案</summary><pre style="white-space:pre-wrap;font:inherit;margin:8px 0 0">${esc(raw.text)}</pre></details>`:""}
+      <details class="card"><summary>改分類</summary>
+        <label class="f" for="eCat">分類</label><select id="eCat">${CATS.map(c=>`<option ${c===p.category?"selected":""}>${c}</option>`).join("")}</select>
+        <label class="f" for="eSub">細分類</label><input type="text" id="eSub" value="${esc(p.subcategory)}">
+        <div class="row" style="gap:8px"><div style="flex:1;min-width:120px"><label class="f" for="eCountry">國家</label><input type="text" id="eCountry" value="${esc(p.country)}"></div>
+        <div style="flex:1;min-width:120px"><label class="f" for="eRegion">地區</label><input type="text" id="eRegion" value="${esc(p.region)}"></div></div>
+        <div class="row" style="margin-top:10px"><button class="btn primary small" id="eSave">儲存分類</button></div></details>
+      <details class="card"><summary>整理得不好?</summary><p class="small muted">可以補充文字(例如把文案貼上),再按重新整理。</p>
+        <textarea id="eUser" style="min-height:80px">${esc(p.user_text||"")}</textarea>
+        <div class="row" style="margin-top:8px"><button class="btn small" id="redo">🔄 重新整理</button><button class="btn small" id="refetch">重新抓一次</button></div></details>
+      <div class="row" style="justify-content:flex-end"><button class="btn small danger" id="del">刪掉這篇</button></div>
+      <div id="delAsk" hidden class="note row" style="justify-content:space-between">確定要刪掉嗎?刪了就找不回來。<span class="row"><button class="btn small" id="delNo">不要</button><button class="btn small danger" id="delYes">刪掉</button></span></div>
+    </div>`);
+    document.querySelectorAll("[data-sv]").forEach(b=>b.onclick=()=>{ const base=d.recipe.servings||1; const nv=Math.max(1,Math.round(base*k)+Number(b.dataset.sv)); k=nv/base; draw(); });
+    $("#shop") && ($("#shop").onclick=()=>copy(`${d.recipe.dish||"食譜"}(${Math.round((d.recipe.servings||1)*k)} 人份)購物清單\n`+(d.recipe.ingredients||[]).map(i=>`□ ${i.name} ${fmtQty(i.qty,k)}${i.unit||""}`.trim()).join("\n")));
+    $("#eSave").onclick=async()=>{ try{ await api("/api/tz/post?id="+p.id,{method:"PATCH",body:{category:$("#eCat").value,subcategory:$("#eSub").value.trim(),country:$("#eCountry").value.trim(),region:$("#eRegion").value.trim()}}); toast("存好了"); closeModal(); await load(); render(); }catch(e){ toast(e.message); } };
+    const redo=async full=>{ try{ await api("/api/tz/post?id="+p.id,{method:"POST",body:{full,user_text:$("#eUser").value}}); toast("重新整理中"); closeModal(); await load(); render(); schedulePoll(); }catch(e){ toast(e.message); } };
+    $("#redo").onclick=()=>redo(false); $("#refetch").onclick=()=>redo(true);
+    $("#del").onclick=()=>{ $("#delAsk").hidden=false; }; $("#delNo").onclick=()=>{ $("#delAsk").hidden=true; };
+    $("#delYes").onclick=async()=>{ try{ await api("/api/tz/post?id="+p.id,{method:"DELETE"}); closeModal(); toast("刪掉了"); await load(); render(); }catch(e){ toast(e.message); } };
+  };
+  draw();
+}
+
+function renderRecipes(){
+  const list=S.posts.filter(p=>p.status==="完成" && p.has_recipe);
+  const types=counts(list.map(p=>({t:p.recipe_type||"其他"})),"t"); const t=S.rtype||""; const shown=t?list.filter(p=>(p.recipe_type||"其他")===t):list;
+  $("#main").innerHTML=`<div class="stack"><div class="row" style="justify-content:space-between"><h2>食譜</h2><span class="small muted">${list.length} 道</span></div>
+    ${list.length?`<div class="chips" id="rt"><button class="chip ${!t?"on":""}" data-t="">全部</button>${types.map(([x,n])=>`<button class="chip ${t===x?"on":""}" data-t="${esc(x)}">${esc(x)}<i>${n}</i></button>`).join("")}</div>
+    <div class="grid">${shown.map(p=>`<button class="post" data-post="${p.id}"><span class="th">${p.thumb?`<img src="${esc(p.thumb)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">`:""}<span class="ic">🍳</span></span><span class="bd"><span class="tt">${esc(p.dish||p.title)}</span><span class="small muted">${esc([p.recipe_type, p.n_ing+" 樣食材"].filter(Boolean).join(" · "))}</span></span></button>`).join("")}</div>`
+    :`<div class="card empty"><b>還沒有食譜</b>收進教做菜、甜點、飲料的貼文,會自動整理成食材和步驟放在這裡。</div>`}</div>`;
+  $("#rt") && ($("#rt").onclick=e=>{ const b=e.target.closest("[data-t]"); if(b){ S.rtype=b.dataset.t; renderRecipes(); } });
+  bindCards();
+}
+
+// ---------- 行程 ----------
+function savedPlaces(country){
+  const out=[]; S.posts.filter(p=>p.status==="完成").forEach(p=>(p.places||[]).forEach((pl,i)=>{
+    const c=p.country||""; if(country && c!==country) return;
+    out.push({sid:p.id+":"+i, name:pl.name, type:pl.type, city:pl.city||p.region, address:pl.address, note:pl.note, lat:pl.lat, lng:pl.lng, country:c, region:p.region||pl.city||"", from:p.title});
+  })); return out;
+}
+async function openTrip(id){ try{ const t=await api("/api/tz/trip?id="+id); S.trip=t; if(S.day>=(t.plan?.days||[]).length) S.day=0; renderTrip(); }catch(e){ toast(e.message); } }
+function renderTrip(){
+  if(S.trip) return renderItin();
+  const countries=counts(savedPlaces("").map(x=>({c:x.country})),"c");
+  const T=S.tp ||= {country:countries[0]?.[0]||"", regions:[], picked:{}, days:3, start:"", pace:"適中", transport:"大眾運輸", stay:"一間住到底", budget:"中等", people:"", interests:[], auto:true, extra:"", dest:""};
+  const all=savedPlaces(T.country); const regs=counts(all.map(x=>({r:x.region})),"r");
+  const places=T.regions.length?all.filter(x=>T.regions.includes(x.region)):all;
+  const seg=(id,opts,val)=>`<div class="seg" id="${id}">${opts.map(o=>`<button class="chip ${val===o?"on":""}" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>`;
+  $("#main").innerHTML=`<div class="stack"><h2>一鍵排行程</h2>
+    ${S.trips.length?`<div class="card"><h3 style="margin-bottom:6px">排過的行程</h3>${S.trips.map(t=>`<div class="job"><span>${esc(t.name)}</span><span class="row">${t.status!=="完成"?`<span class="small ${t.status==="失敗"?"st-err":"muted"}">${esc(t.status)}</span>`:""}<button class="btn small" data-trip="${t.id}">打開</button></span></div>`).join("")}</div>`:""}
+    ${!countries.length?`<div class="card empty"><b>還沒有收藏的地點</b>收進旅遊、餐廳類的貼文後,裡面提到的地點會出現在這裡,勾一勾就能排行程。也可以直接在下面寫想去哪裡。</div>`:""}
+    <div class="card stack">
+      ${countries.length?`<div><label class="f">去哪個國家</label><div class="chips" id="tc">${countries.map(([c,n])=>`<button class="chip ${T.country===c?"on":""}" data-v="${esc(c)}">${esc(c)}<i>${n}</i></button>`).join("")}</div></div>
+      ${regs.length>1?`<div><label class="f">地區(可多選,不選就是全部)</label><div class="chips" id="tr">${regs.map(([r,n])=>`<button class="chip ${T.regions.includes(r)?"on":""}" data-v="${esc(r)}">${esc(r)}<i>${n}</i></button>`).join("")}</div></div>`:""}
+      <div><div class="row" style="justify-content:space-between"><label class="f">要排進去的收藏地點</label><button class="btn small" id="pickAll">全選</button></div>
+        <div class="checkl">${places.map(x=>`<label><input type="checkbox" data-sid="${esc(x.sid)}" ${T.picked[x.sid]?"checked":""}><span><b>${esc(x.name)}</b> <span class="small muted">${esc([x.type,x.city].filter(Boolean).join(" · "))}</span><br><span class="small muted">來自:${esc(x.from)}</span></span></label>`).join("")||`<p class="small muted">這個地區沒有收藏地點</p>`}</div></div>`
+      :`<div><label class="f" for="tDest">想去哪裡</label><input type="text" id="tDest" placeholder="例:香港、深圳" value="${esc(T.dest)}"></div>`}
+      <div class="row" style="gap:10px"><div style="flex:1;min-width:120px"><label class="f" for="tDays">天數</label><input type="number" id="tDays" min="1" max="10" value="${T.days}"></div>
+        <div style="flex:1;min-width:150px"><label class="f" for="tStart">出發日(可不填)</label><input type="date" id="tStart" value="${esc(T.start)}"></div></div>
+      <div><label class="f">步調</label>${seg("sPace",["輕鬆","適中","緊湊"],T.pace)}</div>
+      <div><label class="f">主要交通</label>${seg("sTr",["大眾運輸","步行為主","計程車","自駕"],T.transport)}</div>
+      <div><label class="f">住宿方式</label>${seg("sStay",["一間住到底","每天換區","還沒想好"],T.stay)}</div>
+      <div><label class="f">住宿預算</label>${seg("sBud",["平價","中等","高級"],T.budget)}</div>
+      <div><label class="f">喜歡什麼(可多選)</label><div class="seg" id="sInt">${["美食","購物","拍照景點","咖啡廳","夜市小吃","文青","自然風景","親子"].map(o=>`<button class="chip ${T.interests.includes(o)?"on":""}" data-v="${o}">${o}</button>`).join("")}</div></div>
+      <div><label class="f" for="tPeople">跟誰去</label><input type="text" id="tPeople" placeholder="例:兩個大人、跟老公" value="${esc(T.people)}"></div>
+      <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="tAuto" ${T.auto?"checked":""}> 可以幫我補推薦的地點,把行程排滿</label>
+      <div><label class="f" for="tExtra">其他想說的</label><input type="text" id="tExtra" placeholder="例:第一天下午才到、不想太早起" value="${esc(T.extra)}"></div>
+      <div class="row"><button class="btn primary" id="gen">✨ 一鍵生成行程</button><span class="small muted" id="genSt"></span></div>
+    </div></div>`;
+  const save=()=>{ T.days=Math.max(1,Math.min(10,+$("#tDays").value||3)); T.start=$("#tStart").value; T.people=$("#tPeople").value; T.extra=$("#tExtra").value; T.auto=$("#tAuto").checked; if($("#tDest")) T.dest=$("#tDest").value; };
+  const one=(id,key)=>{ const el=$("#"+id); if(el) el.onclick=e=>{ const b=e.target.closest("[data-v]"); if(b){ save(); T[key]=b.dataset.v; renderTrip(); } }; };
+  one("sPace","pace"); one("sTr","transport"); one("sStay","stay"); one("sBud","budget");
+  $("#tc") && ($("#tc").onclick=e=>{ const b=e.target.closest("[data-v]"); if(b){ save(); T.country=b.dataset.v; T.regions=[]; renderTrip(); } });
+  $("#tr") && ($("#tr").onclick=e=>{ const b=e.target.closest("[data-v]"); if(b){ save(); const v=b.dataset.v; T.regions=T.regions.includes(v)?T.regions.filter(x=>x!==v):[...T.regions,v]; renderTrip(); } });
+  $("#sInt").onclick=e=>{ const b=e.target.closest("[data-v]"); if(b){ save(); const v=b.dataset.v; T.interests=T.interests.includes(v)?T.interests.filter(x=>x!==v):[...T.interests,v]; renderTrip(); } };
+  $("#main").querySelectorAll("[data-sid]").forEach(c=>c.onchange=()=>{ T.picked[c.dataset.sid]=c.checked; });
+  $("#pickAll") && ($("#pickAll").onclick=()=>{ save(); places.forEach(x=>T.picked[x.sid]=true); renderTrip(); });
+  $("#main").querySelectorAll("[data-trip]").forEach(b=>b.onclick=()=>{ S.day=0; openTrip(+b.dataset.trip); });
+  $("#gen").onclick=async()=>{
+    save();
+    const picked=savedPlaces(T.country).filter(x=>T.picked[x.sid]);
+    if(!picked.length && !T.dest && !T.country){ toast("先勾地點,或寫想去哪裡"); return; }
+    const params={country:T.country||T.dest, region:T.regions.join("、"), days:T.days, start_date:T.start, pace:T.pace, transport:T.transport, stay:T.stay, budget:T.budget, people:T.people, interests:T.interests, auto_add:T.auto, extra:T.extra};
+    $("#gen").disabled=true; $("#genSt").textContent="排行程中,大約 30 秒~1 分鐘…";
+    try{ const r=await api("/api/tz/trips",{method:"POST",body:{params,places:picked}}); await load(); schedulePoll(); S.day=0; await openTrip(r.id); }
+    catch(e){ $("#gen").disabled=false; $("#genSt").textContent=e.message; }
+  };
+}
+function dayRouteLink(d,country){
+  const st=(d.stops||[]).map(s=>[s.name,s.city].filter(Boolean).join(" ")); if(st.length<2||isChina(country)) return "";
+  const w=st.slice(1,-1).slice(0,8);
+  return `https://www.google.com/maps/dir/?api=1&origin=${gq(st[0])}&destination=${gq(st[st.length-1])}${w.length?`&waypoints=${gq(w.join("|"))}`:""}&travelmode=transit`;
+}
+function itinText(t){
+  const P=t.plan; const L=[P.title||t.name, P.overview||"", ""];
+  (P.days||[]).forEach(d=>{ L.push(`【第 ${d.day} 天】${d.date||""} ${d.area||""} ${d.theme?"・"+d.theme:""}`);
+    (d.stops||[]).forEach(s=>{ L.push(`${s.time||""} ${s.name}${s.stay?`(${s.stay})`:""}`); if(s.note) L.push("  "+s.note); if(s.next) L.push(`  → ${s.next.mode||""} ${s.next.minutes?s.next.minutes+" 分鐘":""} ${s.next.detail||""}`); }); L.push(""); });
+  (P.hotels||[]).forEach(h=>L.push(`🏨 ${h.area}(${h.nights||""}):${h.why||""}`)); if(P.budget) L.push("","💰 "+P.budget); return L.join("\n");
+}
+let map=null;
+function drawMap(stops){
+  const el=$("#map"); if(!el || !window.L) return;
+  const pts=stops.filter(s=>typeof s.lat==="number"&&typeof s.lng==="number");
+  if(!pts.length){ el.hidden=true; return; }
+  if(map){ map.remove(); map=null; }
+  map=L.map(el,{scrollWheelZoom:false}); L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+  const ll=pts.map(s=>[s.lat,s.lng]);
+  pts.forEach((s,i)=>L.marker([s.lat,s.lng],{icon:L.divIcon({className:"pin",html:`<span>${i+1}</span>`,iconSize:[26,26]})}).addTo(map).bindPopup(esc(s.name)));
+  L.polyline(ll,{color:getComputedStyle(document.documentElement).getPropertyValue("--accent")||"#2f6f62",weight:3,opacity:.7,dashArray:"6 6"}).addTo(map);
+  map.fitBounds(ll,{padding:[30,30],maxZoom:15});
+}
+async function saveTrip(){ try{ await api("/api/tz/trip?id="+S.trip.id,{method:"PUT",body:{plan:S.trip.plan,name:S.trip.name}}); }catch(e){ toast(e.message); } }
+function renderItin(){
+  const t=S.trip;
+  if(!t.plan){
+    $("#main").innerHTML=`<div class="stack"><button class="btn small" id="back" style="align-self:flex-start">← 回行程列表</button>
+      <div class="card empty"><b>${t.status==="失敗"?"排行程失敗":"排行程中…"}</b>${t.status==="失敗"?esc(t.error||"")+"<br><br>回上一頁再按一次「一鍵生成行程」,或把天數改少一點。":"大約 30 秒~1 分鐘,好了會自動出現。"}</div></div>`;
+    $("#back").onclick=()=>{ S.trip=null; renderTrip(); }; return;
+  }
+  const P=t.plan, days=P.days||[]; if(S.day>=days.length) S.day=0;
+  const d=days[S.day]||{stops:[]}; const country=t.params?.country||""; const route=dayRouteLink(d,country); const busy=["生成中","修改中"].includes(t.status);
+  $("#main").innerHTML=`<div class="stack">
+    <div class="row" style="justify-content:space-between"><button class="btn small" id="back">← 回行程列表</button><span class="row"><button class="btn small" id="cpIt">複製成文字</button><button class="btn small danger" id="delIt">刪掉</button></span></div>
+    <div id="delAsk" hidden class="note row" style="justify-content:space-between">確定刪掉這個行程?<span class="row"><button class="btn small" id="delNo">不要</button><button class="btn small danger" id="delYes">刪掉</button></span></div>
+    <div><h2>${esc(P.title||t.name)}</h2>${P.overview?`<p class="muted" style="margin:6px 0 0">${esc(P.overview)}</p>`:""}</div>
+    ${busy?`<div class="note">AI 正在修改行程,好了會自動更新…</div>`:""}${t.error&&!busy?`<div class="note st-err">${esc(t.error)}</div>`:""}
+    <div class="daytabs" id="dt">${days.map((x,i)=>`<button class="chip ${i===S.day?"on":""}" data-d="${i}">第 ${x.day||i+1} 天${x.date?" "+esc(String(x.date).slice(5)):""}</button>`).join("")}</div>
+    <div id="map" class="map"></div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:4px"><h3>${esc(d.area||"")}${d.theme?" ・ "+esc(d.theme):""}</h3>${route?`<a class="small" href="${route}" target="_blank" rel="noopener">整天路線看 Google 地圖 ↗</a>`:""}</div>
+      ${(d.stops||[]).map((s,i)=>`<div class="stop"><div class="tm">${esc(s.time||"")}<div class="num">${i+1}</div></div><div class="bd">
+        <div>${s.saved_id?`<span class="saved" title="你收藏的"></span>`:""}<b>${esc(s.name)}</b> <span class="small muted">${esc([s.type,s.stay,s.cost].filter(Boolean).join(" · "))}</span></div>
+        ${s.note?`<div class="small">${esc(s.note)}</div>`:""}
+        <div class="links">${mapLinks(s.name,s.city,country)}
+          <button class="btn small" data-up="${i}" ${i===0?"disabled":""} aria-label="往前">↑</button><button class="btn small" data-down="${i}" ${i===d.stops.length-1?"disabled":""} aria-label="往後">↓</button>
+          <select class="btn small" data-mv="${i}" style="width:auto;padding:3px 8px" aria-label="移到別天"><option value="">移到…</option>${days.map((x,j)=>j===S.day?"":`<option value="${j}">第 ${x.day||j+1} 天</option>`).join("")}</select>
+          <button class="btn small danger" data-rm="${i}" aria-label="刪掉這站">✕</button></div>
+        ${s.next?`<div class="next">→ ${esc(s.next.mode||"")}${s.next.minutes?` 約 ${esc(s.next.minutes)} 分鐘`:""}${s.next.detail?`:${esc(s.next.detail)}`:""}</div>`:""}
+      </div></div>`).join("")||`<p class="muted">這天還沒有安排</p>`}
+      ${(t.places||[]).length?`<div class="row" style="margin-top:10px"><select id="addSaved" style="flex:1;min-width:180px"><option value="">＋ 從收藏加一個地點到這天</option>${t.places.map(x=>`<option value="${esc(x.sid)}">${esc(x.name)}</option>`).join("")}</select></div>`:""}
+    </div>
+    <div class="card stack"><h3>想改什麼直接說</h3><textarea id="ref" style="min-height:70px" placeholder="例:第二天輕鬆一點、加一間咖啡廳、晚餐想吃火鍋"></textarea>
+      <div class="row"><button class="btn primary" id="refGo" ${busy?"disabled":""}>請 AI 改</button></div></div>
+    ${(P.hotels||[]).length?`<div class="card"><h3 style="margin-bottom:4px">🏨 住宿建議</h3>${P.hotels.map(h=>`<div class="place"><b>${esc(h.area)}</b> <span class="small muted">${esc(h.nights||"")}</span><div class="small">${esc(h.why||"")}</div>
+      ${(h.suggestions||[]).map(x=>`<div class="small" style="margin-top:4px">・${esc(x.name)} <span class="muted">${esc([x.level,x.price].filter(Boolean).join(" · "))}</span></div>`).join("")}
+      <div class="links"><a href="https://www.booking.com/searchresults.zh-tw.html?ss=${gq(h.area+" "+(t.params?.region||country))}" target="_blank" rel="noopener">Booking 查價</a>
+        <a href="https://www.agoda.com/zh-tw/search?textToSearch=${gq(h.area+" "+(t.params?.region||country))}" target="_blank" rel="noopener">Agoda 查價</a>
+        <a href="https://www.google.com/travel/hotels?q=${gq(h.area+" "+(t.params?.region||country)+" 飯店")}" target="_blank" rel="noopener">Google 飯店比價</a>
+        <a href="https://tw.trip.com/hotels/list?keyword=${gq(h.area)}" target="_blank" rel="noopener">攜程</a></div></div>`).join("")}</div>`:""}
+    ${P.transport?`<div class="card"><h3 style="margin-bottom:4px">🚇 交通</h3>${P.transport.arrival?`<p class="small" style="margin:4px 0"><b>怎麼到:</b>${esc(P.transport.arrival)}</p>`:""}${P.transport.local?`<p class="small" style="margin:4px 0"><b>當地:</b>${esc(P.transport.local)}</p>`:""}${(P.transport.tips||[]).map(x=>`<div class="small muted">・${esc(x)}</div>`).join("")}</div>`:""}
+    ${P.budget?`<div class="card"><h3 style="margin-bottom:4px">💰 預算</h3><p class="small" style="margin:0">${esc(P.budget)}</p></div>`:""}
+    ${(P.checklist||[]).length?`<div class="card"><h3 style="margin-bottom:4px">出發前</h3><div class="checkl">${P.checklist.map((x,i)=>`<label><input type="checkbox" id="ck${i}"><span class="small">${esc(x)}</span></label>`).join("")}</div></div>`:""}
+  </div>`;
+  drawMap(d.stops||[]);
+  $("#back").onclick=()=>{ S.trip=null; renderTrip(); };
+  $("#cpIt").onclick=()=>copy(itinText(t));
+  $("#delIt").onclick=()=>{ $("#delAsk").hidden=false; }; $("#delNo").onclick=()=>{ $("#delAsk").hidden=true; };
+  $("#delYes").onclick=async()=>{ try{ await api("/api/tz/trip?id="+t.id,{method:"DELETE"}); S.trip=null; await load(); renderTrip(); toast("刪掉了"); }catch(e){ toast(e.message); } };
+  $("#dt").onclick=e=>{ const b=e.target.closest("[data-d]"); if(b){ S.day=+b.dataset.d; renderItin(); } };
+  const edit=async fn=>{ fn(d.stops); renderItin(); await saveTrip(); };
+  $("#main").querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>edit(a=>{ const i=+b.dataset.up; [a[i-1],a[i]]=[a[i],a[i-1]]; }));
+  $("#main").querySelectorAll("[data-down]").forEach(b=>b.onclick=()=>edit(a=>{ const i=+b.dataset.down; [a[i+1],a[i]]=[a[i],a[i+1]]; }));
+  $("#main").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>edit(a=>a.splice(+b.dataset.rm,1)));
+  $("#main").querySelectorAll("[data-mv]").forEach(s=>s.onchange=()=>{ if(s.value==="") return; const j=+s.value; edit(a=>{ const [x]=a.splice(+s.dataset.mv,1); (days[j].stops ||= []).push(x); }); });
+  $("#addSaved") && ($("#addSaved").onchange=e=>{ const x=t.places.find(p=>p.sid===e.target.value); if(x) edit(a=>a.push({time:"",name:x.name,city:x.city,type:x.type,saved_id:x.sid,lat:x.lat,lng:x.lng,note:x.note||"",next:null})); });
+  $("#refGo").onclick=async()=>{ const ins=$("#ref").value.trim(); if(!ins){ toast("先寫想怎麼改"); return; }
+    try{ await api("/api/tz/trip?id="+t.id,{method:"POST",body:{instruction:ins}}); t.status="修改中"; await load(); renderItin(); schedulePoll(); }catch(e){ toast(e.message); } };
+}
+
+// ---------- 設定 ----------
+async function renderSet(){
+  $("#main").innerHTML=`<div class="stack"><h2>設定</h2><div class="card empty">讀取中…</div></div>`;
+  let s; try{ s=await api("/api/tz/share"); }catch(e){ return; }
+  $("#main").innerHTML=`<div class="stack"><h2>設定</h2>
+    <div class="card stack"><h3>iPhone:在 IG 按「分享」就存進來</h3>
+      <p class="small muted" style="margin:0">做一次就好。做好之後,在 IG、TikTok、抖音、小紅書、臉書按分享 → 「存到整理小幫手」,連結就會自己送進來整理。</p>
+      <ol class="small" style="margin:0;padding-left:20px;line-height:1.9">
+        <li>先按下面的「複製捷徑網址」</li>
+        <li>打開 iPhone 的「<b>捷徑</b>」App → 右上角 <b>＋</b></li>
+        <li>最上面把名字改成「<b>存到整理小幫手</b>」</li>
+        <li>按「加入動作」,搜尋「<b>取得 URL 內容</b>」,點它</li>
+        <li>點藍色的「URL」→ 貼上剛剛複製的網址</li>
+        <li>點「顯示更多」:方法改 <b>POST</b>;要求主體選 <b>JSON</b>;按「新增欄位」→「文字」,鍵打 <code>text</code>,值點一下選「<b>捷徑輸入</b>」</li>
+        <li>再加一個動作「<b>顯示通知</b>」,內容點選「<b>URL 的內容</b>」</li>
+        <li>點最下面的 <b>ⓘ</b>(或右上角設定)→ 打開「<b>在分享表單中顯示</b>」→ 接收類型只留「URL」和「文字」</li>
+        <li>按「完成」。之後在 IG 按分享,往右滑到最後點「更多」,就找得到「存到整理小幫手」</li>
+      </ol>
+      <div class="row"><button class="btn primary" id="cpUrl">複製捷徑網址</button><button class="btn small" id="rot">換一組新網址</button></div>
+      <p class="small muted" style="margin:0">這個網址等於你的鑰匙,不要傳給別人。不小心傳出去了就按「換一組新網址」,再把捷徑裡的網址換掉。</p>
+    </div>
+    <div class="card stack"><h3>放到手機桌面</h3>
+      <ol class="small" style="margin:0;padding-left:20px;line-height:1.9"><li>用 iPhone 的 <b>Safari</b> 打開這一頁</li><li>按下面中間的<b>分享按鈕</b>(方框加向上箭頭)</li><li>往下滑,點「<b>加入主畫面</b>」→「新增」</li></ol></div>
+    <div class="card small"><h3 style="margin-bottom:6px">狀態</h3>
+      <div>抓貼文服務(Apify):${s.apify?"✅ 已設定":"❌ 還沒設定"}</div>
+      <div>AI 整理(Claude):${s.ai?"✅ 已設定":"❌ 還沒設定 —— 到 Vercel 加 ANTHROPIC_API_KEY"}</div></div>
+    <div class="row"><button class="btn small" id="logout">登出</button></div>
+  </div>`;
+  $("#cpUrl").onclick=()=>copy(s.url);
+  $("#rot").onclick=async()=>{ const r=await api("/api/tz/share",{method:"POST",body:{rotate:true}}).catch(e=>toast(e.message)); if(r){ s.url=r.url; toast("換好了,記得改捷徑裡的網址"); } };
+  $("#logout").onclick=async()=>{ await fetch("/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({logout:true})}); showLogin(); };
+}
+boot();
+
+</script></body></html>

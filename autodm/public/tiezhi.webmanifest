@@ -1,0 +1,20 @@
+{
+ "name": "貼文整理小幫手",
+ "short_name": "整理小幫手",
+ "start_url": "/tiezhi.html",
+ "display": "standalone",
+ "background_color": "#f3f6f4",
+ "theme_color": "#2f6f62",
+ "icons": [
+  {
+   "src": "/tiezhi-icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "/tiezhi-icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png"
+  }
+ ]
+}

@@ -4,8 +4,17 @@
   "private": true,
   "type": "module",
   "description": "Jojo 的 IG 自動私訊程式（留言、限動回覆、私訊關鍵字、按鈕）",
-  "engines": { "node": ">=20" },
-  "scripts": { "test": "node --test test/*.test.js" },
-  "dependencies": { "pg": "8.13.1" },
-  "devDependencies": { "pg-mem": "3.0.5" }
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "pg": "8.13.1",
+    "@vercel/functions": "3.4.0"
+  },
+  "devDependencies": {
+    "pg-mem": "3.0.5"
+  }
 }
