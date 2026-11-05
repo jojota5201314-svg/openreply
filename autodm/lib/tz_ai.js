@@ -7,7 +7,7 @@ export async function claude(system, user, { images = [], maxTokens = 6000, time
   const key = env("ANTHROPIC_API_KEY");
   const model = process.env.TZ_MODEL || "claude-sonnet-5-5";
   const send = async (imgs) => {
-    const content = [...imgs.map((u) => ({ type: "image", source: { type: "url", url: u } })), { type: "text", text: user }];
+    const content = [...imgs.map((u) => ({ type: "image", source: { type: "url", url: u } })), { type: "text", text: asJson ? user + "\n\n請呼叫 save_result 工具交出結果(把上面的 JSON 欄位直接當成工具的參數),不要另外打字。" : user }];
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), timeoutMs);
     try {
@@ -15,7 +15,7 @@ export async function claude(system, user, { images = [], maxTokens = 6000, time
         headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
         body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: "user", content }],
           ...(asJson ? { tools: [{ name: "save_result", description: "把整理好的結果交出來。照使用者訊息裡說明的 JSON 格式填。", input_schema: { type: "object", additionalProperties: true } }],
-            tool_choice: { type: "tool", name: "save_result" } } : {}) }) });
+            tool_choice: { type: "auto" } } : {}) }) });
       const j = await r.json().catch(() => ({}));
       return { ok: r.ok, status: r.status, j };
     } finally { clearTimeout(t); }
@@ -40,7 +40,8 @@ export async function claude(system, user, { images = [], maxTokens = 6000, time
       if (keys.length === 1 && typeof inp[keys[0]] === "string" && inp[keys[0]].trim().startsWith("{")) { try { inp = parseJson(inp[keys[0]]); } catch {} }
       return inp;
     }
-    throw new Error("AI 沒有交出結果,再試一次");
+    const txt = (res.j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+    return parseJson(txt);
   }
   return (res.j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
 }
