@@ -63,37 +63,45 @@ async function douyinId(url) {
   }
   return "";
 }
-async function douyinPage(id) {
-  const r = await fetch(`https://www.iesdouyin.com/share/video/${id}/`, { headers: { "User-Agent": MOBILE_UA, Referer: "https://www.douyin.com/" } });
-  const html = await r.text();
-  const m = html.match(/window\._ROUTER_DATA\s*=\s*(\{[\s\S]*?\})\s*<\/script>/);
-  if (!m) return null;
-  const data = JSON.parse(m[1]);
-  const pages = Object.values(data.loaderData || {});
-  for (const pg of pages) {
-    const it = pg?.videoInfoRes?.item_list?.[0];
-    if (it) return {
-      text: it.desc || "", author: it.author?.nickname || "",
-      images: [it.video?.cover?.url_list?.[0], ...(it.images || []).map((x) => x?.url_list?.[0])].filter(Boolean),
-      is_video: !it.images?.length,
-    };
+async function douyinPage(id, dbg) {
+  for (const kind of ["video", "note"]) {
+    const r = await fetch(`https://www.iesdouyin.com/share/${kind}/${id}/`, { headers: { "User-Agent": MOBILE_UA, Referer: "https://www.douyin.com/", "Accept-Language": "zh-CN,zh;q=0.9" } });
+    const html = await r.text();
+    dbg.push(`${kind}:${r.status}:${html.length}`);
+    const m = html.match(/window\._ROUTER_DATA\s*=\s*(\{[\s\S]*?\})\s*<\/script>/);
+    if (!m) { dbg.push("no_router"); continue; }
+    let data; try { data = JSON.parse(m[1]); } catch { dbg.push("bad_json"); continue; }
+    for (const pg of Object.values(data.loaderData || {})) {
+      const it = pg?.videoInfoRes?.item_list?.[0];
+      if (it) return {
+        text: it.desc || "", author: it.author?.nickname || "",
+        images: [it.video?.cover?.url_list?.[0], ...(it.images || []).map((x) => x?.url_list?.[0])].filter(Boolean),
+        is_video: !it.images?.length,
+      };
+    }
+    dbg.push("no_item");
   }
   return null;
 }
 async function fetchDouyin(url) {
+  const dbg = [];
   let id = "";
-  try { id = await douyinId(url); } catch {}
+  try { id = await douyinId(url); } catch (e) { dbg.push("id_err:" + e.message); }
+  dbg.push("id:" + id);
   let page = null;
-  if (id) { try { page = await douyinPage(id); } catch {} }
-  const target = id ? `https://www.douyin.com/video/${id}` : url;
-  let tr = null;
-  if (!page || page.is_video) tr = await runActor("抖音", target);
-  const p = tr?.post || {};
+  if (id) { try { page = await douyinPage(id, dbg); } catch (e) { dbg.push("page_err:" + e.message); } }
+  let p = {}, trErr = "";
+  // 講的話要用付費的轉文字服務,只有在讀不到文案時才用
+  if (!page?.text && process.env.DOUYIN_TRANSCRIBE === "1") {
+    const tr = await runActor("抖音", id ? `https://www.douyin.com/video/${id}` : url);
+    p = tr.post || {}; trErr = tr.error || "";
+  }
   const post = { platform: "抖音", author: page?.author || p.author || "", title: p.title || "", text: page?.text || p.text || "",
     transcript: p.transcript || "", location: p.location || "", images: (page?.images?.length ? page.images : p.images || []).slice(0, 8),
-    is_video: page ? page.is_video : p.is_video };
+    is_video: page ? page.is_video : Boolean(p.is_video) };
   const ok = Boolean(post.text || post.transcript);
-  return { ok, platform: "抖音", post, error: ok ? "" : (tr?.error || "抓不到這篇抖音(可能是私人、已刪除,或抖音擋住了)") };
+  return { ok, platform: "抖音", post, debug: dbg.join(" | "),
+    error: ok ? "" : (trErr || "抓不到這篇抖音的文案(可能是私人、已刪除,或抖音擋住了)") };
 }
 
 export async function fetchPost(url) {
