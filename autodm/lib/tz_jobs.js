@@ -56,6 +56,7 @@ export async function runTrip(id) {
     } else if (t.status === "修改中") {
       const plan = await refineTrip(t.params || {}, t.places || [], t.plan, t.pending || "");
       if (!plan?.days) throw new Error("AI 回傳的行程格式不對,再試一次");
+      if (t.plan?.stays) plan.stays = t.plan.stays; // 自己設定的住宿要留著
       await tq("UPDATE tz_trips SET status = '完成', error = '', plan = $2, name = $3, pending = '' WHERE id = $1", [id, JSON.stringify(plan), plan.title || t.name]);
     }
   } catch (e) {

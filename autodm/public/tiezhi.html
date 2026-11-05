@@ -113,6 +113,8 @@ details summary{cursor:pointer;color:var(--accent)}
 .map{height:260px;border-radius:var(--r);border:1px solid var(--line);overflow:hidden;z-index:0}
 .pin span{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--paper);font-weight:700;font-size:13px;border:2px solid var(--paper);box-shadow:0 1px 4px rgb(0 0 0 / .3)}
 .stop .num{display:inline-flex;margin-top:4px;width:20px;height:20px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;align-items:center;justify-content:center;font-family:var(--f-body)}
+.staybox{background:var(--mark-soft);border-radius:10px;padding:10px 12px;margin:6px 0 4px}
+.staybox input,.staybox select{background:var(--paper)}
 code{background:var(--accent-soft);padding:1px 6px;border-radius:4px}
 html,body{margin:0}
 </style></head><body>
@@ -363,7 +365,9 @@ function renderTrip(){
       ${countries.length?`<div><label class="f">去哪個國家</label><div class="chips" id="tc">${countries.map(([c,n])=>`<button class="chip ${T.country===c?"on":""}" data-v="${esc(c)}">${esc(c)}<i>${n}</i></button>`).join("")}</div></div>
       ${regs.length>1?`<div><label class="f">地區(可多選,不選就是全部)</label><div class="chips" id="tr">${regs.map(([r,n])=>`<button class="chip ${T.regions.includes(r)?"on":""}" data-v="${esc(r)}">${esc(r)}<i>${n}</i></button>`).join("")}</div></div>`:""}
       <div><div class="row" style="justify-content:space-between"><label class="f">要排進去的收藏地點</label><button class="btn small" id="pickAll">全選</button></div>
-        <div class="checkl">${places.map(x=>`<label><input type="checkbox" data-sid="${esc(x.sid)}" ${T.picked[x.sid]?"checked":""}><span><b>${esc(x.name)}</b> <span class="small muted">${esc([x.type,x.city].filter(Boolean).join(" · "))}</span>${x.from.length>1?` <span class="tag mark">${x.from.length} 篇都有提到</span>`:""}<br><span class="small muted">來自:${esc(x.from.slice(0,3).join("、"))}${x.from.length>3?` 等 ${x.from.length} 篇`:""}</span></span></label>`).join("")||`<p class="small muted">這個地區沒有收藏地點</p>`}</div></div>`
+        <div class="checkl">${places.map(x=>`<label><input type="checkbox" data-sid="${esc(x.sid)}" ${T.picked[x.sid]?"checked":""}><span><b>${esc(x.name)}</b> <span class="small muted">${esc([x.type,x.city].filter(Boolean).join(" · "))}</span>${x.from.length>1?` <span class="tag mark">${x.from.length} 篇都有提到</span>`:""}${x.address?`<br><span class="small">📍 ${esc(x.address)}</span>`:""}
+        <br><a class="small" href="https://www.google.com/maps/search/?api=1&query=${gq(x.address||[x.name,x.city].filter(Boolean).join(" "))}" target="_blank" rel="noopener">看地圖確認位置 ↗</a>
+        <br><span class="small muted">來自:${esc(x.from.slice(0,3).join("、"))}${x.from.length>3?` 等 ${x.from.length} 篇`:""}</span></span></label>`).join("")||`<p class="small muted">這個地區沒有收藏地點</p>`}</div></div>`
       :`<div><label class="f" for="tDest">想去哪裡</label><input type="text" id="tDest" placeholder="例:香港、深圳" value="${esc(T.dest)}"></div>`}
       <div class="row" style="gap:10px"><div style="flex:1;min-width:120px"><label class="f" for="tDays">天數</label><input type="number" id="tDays" min="1" max="10" value="${T.days}"></div>
         <div style="flex:1;min-width:150px"><label class="f" for="tStart">出發日(可不填)</label><input type="date" id="tStart" value="${esc(T.start)}"></div></div>
@@ -396,14 +400,21 @@ function renderTrip(){
     catch(e){ $("#gen").disabled=false; $("#genSt").textContent=e.message; }
   };
 }
-function dayRouteLink(d,country){
-  const st=(d.stops||[]).map(s=>[s.name,s.city].filter(Boolean).join(" ")); if(st.length<2||isChina(country)) return "";
+function stayQ(st){ return st ? (st.address || st.name) : ""; }
+function stayLinks(st,country){
+  const q=stayQ(st); if(!q) return "";
+  let h=`<a href="https://www.google.com/maps/search/?api=1&query=${gq(q)}" target="_blank" rel="noopener">Google 地圖</a>`;
+  if(isChina(country)) h+=`<a href="https://uri.amap.com/search?keyword=${gq(st.name||q)}" target="_blank" rel="noopener">高德地圖</a>`;
+  return h;
+}
+function dayRouteLink(d,country,stay){
+  const st=(d.stops||[]).map(s=>[s.name,s.city].filter(Boolean).join(" ")); if(stay) st.unshift(stayQ(stay)); if(st.length<2||isChina(country)) return "";
   const w=st.slice(1,-1).slice(0,8);
   return `https://www.google.com/maps/dir/?api=1&origin=${gq(st[0])}&destination=${gq(st[st.length-1])}${w.length?`&waypoints=${gq(w.join("|"))}`:""}&travelmode=transit`;
 }
 function itinText(t){
   const P=t.plan; const L=[P.title||t.name, P.overview||"", ""];
-  (P.days||[]).forEach(d=>{ L.push(`【第 ${d.day} 天】${d.date||""} ${d.area||""} ${d.theme?"・"+d.theme:""}`);
+  (P.days||[]).forEach((d,di)=>{ L.push(`【第 ${d.day} 天】${d.date||""} ${d.area||""} ${d.theme?"・"+d.theme:""}`); const st=(P.stays||{})[di]; if(st) L.push(`🏨 今晚住:${st.name}${st.address?`(${st.address})`:""}`);
     (d.stops||[]).forEach(s=>{ L.push(`${s.time||""} ${s.name}${s.stay?`(${s.stay})`:""}`); if(s.note) L.push("  "+s.note); if(s.next) L.push(`  → ${s.next.mode||""} ${s.next.minutes?s.next.minutes+" 分鐘":""} ${s.next.detail||""}`); }); L.push(""); });
   (P.hotels||[]).forEach(h=>L.push(`🏨 ${h.area}(${h.nights||""}):${h.why||""}`)); if(P.budget) L.push("","💰 "+P.budget); return L.join("\n");
 }
@@ -428,7 +439,7 @@ function renderItin(){
     $("#back").onclick=()=>{ S.trip=null; renderTrip(); }; return;
   }
   const P=t.plan, days=P.days||[]; if(S.day>=days.length) S.day=0;
-  const d=days[S.day]||{stops:[]}; const country=t.params?.country||""; const route=dayRouteLink(d,country); const busy=["生成中","修改中"].includes(t.status);
+  const d=days[S.day]||{stops:[]}; const country=t.params?.country||""; const stay=(P.stays||{})[S.day]||null; const route=dayRouteLink(d,country,stay); const busy=["生成中","修改中"].includes(t.status);
   $("#main").innerHTML=`<div class="stack">
     <div class="row" style="justify-content:space-between"><button class="btn small" id="back">← 回行程列表</button><span class="row"><button class="btn small" id="cpIt">複製成文字</button><button class="btn small danger" id="delIt">刪掉</button></span></div>
     <div id="delAsk" hidden class="note row" style="justify-content:space-between">確定刪掉這個行程?<span class="row"><button class="btn small" id="delNo">不要</button><button class="btn small danger" id="delYes">刪掉</button></span></div>
@@ -438,6 +449,15 @@ function renderItin(){
     <div id="map" class="map"></div>
     <div class="card">
       <div class="row" style="justify-content:space-between;margin-bottom:4px"><h3>${esc(d.area||"")}${d.theme?" ・ "+esc(d.theme):""}</h3>${route?`<a class="small" href="${route}" target="_blank" rel="noopener">整天路線看 Google 地圖 ↗</a>`:""}</div>
+      <div class="staybox">${S.stayEdit?`
+        <div class="stack" style="gap:6px"><b class="small">🏨 設定住哪一間</b>
+          <input type="text" id="stName" placeholder="飯店名稱,例:上海外灘W酒店" value="${esc(S.stayEdit.name||"")}">
+          <input type="text" id="stAddr" placeholder="地址(訂房網站或訂房確認信上有)" value="${esc(S.stayEdit.address||"")}">
+          <div class="row small">從第<select id="stFrom" style="width:auto">${days.map((x,j)=>`<option value="${j}" ${j===S.stayEdit.from?"selected":""}>${j+1}</option>`).join("")}</select>天晚上
+            到第<select id="stTo" style="width:auto">${days.map((x,j)=>`<option value="${j}" ${j===S.stayEdit.to?"selected":""}>${j+1}</option>`).join("")}</select>天晚上</div>
+          <div class="row"><button class="btn primary small" id="stSave">儲存</button><button class="btn small" id="stCancel">取消</button>${stay?`<button class="btn small danger" id="stClear">這天不住這間</button>`:""}</div></div>`
+      : stay?`<div class="row" style="justify-content:space-between;align-items:flex-start"><div style="min-width:0">🏨 <span class="small muted">第 ${S.day+1} 天晚上住</span><br><b>${esc(stay.name)}</b>${stay.address?`<div class="small">📍 ${esc(stay.address)}</div>`:""}<div class="links">${stayLinks(stay,country)}</div></div><button class="btn small" id="stEdit">改</button></div>`
+      : `<button class="btn small" id="stAdd">＋ 設定第 ${S.day+1} 天晚上住哪一間</button>`}</div>
       ${(d.stops||[]).map((s,i)=>`<div class="stop"><div class="tm">${esc(s.time||"")}<div class="num">${i+1}</div></div><div class="bd">
         <div>${s.saved_id?`<span class="saved" title="你收藏的"></span>`:""}<b>${esc(s.name)}</b> <span class="small muted">${esc([s.type,s.stay,s.cost].filter(Boolean).join(" · "))}</span></div>
         ${s.note?`<div class="small">${esc(s.note)}</div>`:""}
@@ -451,8 +471,9 @@ function renderItin(){
     </div>
     <div class="card stack"><h3>想改什麼直接說</h3><textarea id="ref" style="min-height:70px" placeholder="例:第二天輕鬆一點、加一間咖啡廳、晚餐想吃火鍋"></textarea>
       <div class="row"><button class="btn primary" id="refGo" ${busy?"disabled":""}>請 AI 改</button></div></div>
+    ${Object.keys(P.stays||{}).length?`<div class="card"><h3 style="margin-bottom:4px">🛏 我的住宿</h3>${days.map((x,j)=>{ const st=(P.stays||{})[j]; return `<div class="place"><span class="small muted">第 ${j+1} 天晚上</span> ${st?`<b>${esc(st.name)}</b>${st.address?`<div class="small">📍 ${esc(st.address)}</div>`:""}<div class="links">${stayLinks(st,country)}</div>`:`<span class="small muted">還沒設定</span>`}</div>`; }).join("")}</div>`:""}
     ${(P.hotels||[]).length?`<div class="card"><h3 style="margin-bottom:4px">🏨 住宿建議</h3>${P.hotels.map(h=>`<div class="place"><b>${esc(h.area)}</b> <span class="small muted">${esc(h.nights||"")}</span><div class="small">${esc(h.why||"")}</div>
-      ${(h.suggestions||[]).map(x=>`<div class="small" style="margin-top:4px">・${esc(x.name)} <span class="muted">${esc([x.level,x.price].filter(Boolean).join(" · "))}</span></div>`).join("")}
+      ${(h.suggestions||[]).map(x=>`<div class="small row" style="margin-top:4px;justify-content:space-between"><span>・${esc(x.name)} <span class="muted">${esc([x.level,x.price].filter(Boolean).join(" · "))}</span></span><button class="btn small" data-pick-hotel="${esc(x.name)}">住這間</button></div>`).join("")}
       <div class="links"><a href="https://www.booking.com/searchresults.zh-tw.html?ss=${gq(h.area+" "+(t.params?.region||country))}" target="_blank" rel="noopener">Booking 查價</a>
         <a href="https://www.agoda.com/zh-tw/search?textToSearch=${gq(h.area+" "+(t.params?.region||country))}" target="_blank" rel="noopener">Agoda 查價</a>
         <a href="https://www.google.com/travel/hotels?q=${gq(h.area+" "+(t.params?.region||country)+" 飯店")}" target="_blank" rel="noopener">Google 飯店比價</a>
@@ -466,13 +487,25 @@ function renderItin(){
   $("#cpIt").onclick=()=>copy(itinText(t));
   $("#delIt").onclick=()=>{ $("#delAsk").hidden=false; }; $("#delNo").onclick=()=>{ $("#delAsk").hidden=true; };
   $("#delYes").onclick=async()=>{ try{ await api("/api/tz?a=trip&id="+t.id,{method:"DELETE"}); S.trip=null; await load(); renderTrip(); toast("刪掉了"); }catch(e){ toast(e.message); } };
-  $("#dt").onclick=e=>{ const b=e.target.closest("[data-d]"); if(b){ S.day=+b.dataset.d; renderItin(); } };
+  $("#dt").onclick=e=>{ const b=e.target.closest("[data-d]"); if(b){ S.day=+b.dataset.d; S.stayEdit=null; renderItin(); } };
   const edit=async fn=>{ fn(d.stops); renderItin(); await saveTrip(); };
   $("#main").querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>edit(a=>{ const i=+b.dataset.up; [a[i-1],a[i]]=[a[i],a[i-1]]; }));
   $("#main").querySelectorAll("[data-down]").forEach(b=>b.onclick=()=>edit(a=>{ const i=+b.dataset.down; [a[i+1],a[i]]=[a[i],a[i+1]]; }));
   $("#main").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>edit(a=>a.splice(+b.dataset.rm,1)));
   $("#main").querySelectorAll("[data-mv]").forEach(s=>s.onchange=()=>{ if(s.value==="") return; const j=+s.value; edit(a=>{ const [x]=a.splice(+s.dataset.mv,1); (days[j].stops ||= []).push(x); }); });
   $("#addSaved") && ($("#addSaved").onchange=e=>{ const x=t.places.find(p=>p.sid===e.target.value); if(x) edit(a=>a.push({time:"",name:x.name,city:x.city,type:x.type,saved_id:x.sid,lat:x.lat,lng:x.lng,note:x.note||"",next:null})); });
+  const openStay=(pre={})=>{ const cur=(P.stays||{})[S.day]||{}; S.stayEdit={name:pre.name??cur.name??"", address:pre.address??cur.address??"", from:S.day, to:S.day}; renderItin(); $(".staybox")?.scrollIntoView({block:"center"}); };
+  $("#stAdd") && ($("#stAdd").onclick=()=>openStay());
+  $("#stEdit") && ($("#stEdit").onclick=()=>openStay());
+  $("#main").querySelectorAll("[data-pick-hotel]").forEach(b=>b.onclick=()=>{ openStay({name:b.dataset.pickHotel, address:""}); toast("記得補上地址,再按儲存"); });
+  $("#stCancel") && ($("#stCancel").onclick=()=>{ S.stayEdit=null; renderItin(); });
+  $("#stClear") && ($("#stClear").onclick=async()=>{ delete (P.stays||{})[S.day]; S.stayEdit=null; renderItin(); await saveTrip(); });
+  $("#stSave") && ($("#stSave").onclick=async()=>{
+    const name=$("#stName").value.trim(), address=$("#stAddr").value.trim(); if(!name && !address){ toast("至少填飯店名稱或地址"); return; }
+    let a=+$("#stFrom").value, b=+$("#stTo").value; if(b<a) [a,b]=[b,a];
+    P.stays ||= {}; for(let j=a;j<=b;j++) P.stays[j]={name:name||address, address};
+    S.stayEdit=null; renderItin(); await saveTrip(); toast("住宿存好了");
+  });
   $("#refGo").onclick=async()=>{ const ins=$("#ref").value.trim(); if(!ins){ toast("先寫想怎麼改"); return; }
     try{ await api("/api/tz?a=trip&id="+t.id,{method:"POST",body:{instruction:ins}}); t.status="修改中"; await load(); renderItin(); schedulePoll(); }catch(e){ toast(e.message); } };
 }
