@@ -359,7 +359,9 @@ function renderTrip(){
   const places=T.regions.length?all.filter(x=>T.regions.includes(x.region)):all;
   const seg=(id,opts,val)=>`<div class="seg" id="${id}">${opts.map(o=>`<button class="chip ${val===o?"on":""}" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>`;
   $("#main").innerHTML=`<div class="stack"><h2>一鍵排行程</h2>
-    ${S.trips.length?`<div class="card"><h3 style="margin-bottom:6px">排過的行程</h3>${S.trips.map(t=>`<div class="job"><span>${esc(t.name)}</span><span class="row">${t.status!=="完成"?`<span class="small ${t.status==="失敗"?"st-err":"muted"}">${esc(t.status)}</span>`:""}<button class="btn small" data-trip="${t.id}">打開</button></span></div>`).join("")}</div>`:""}
+    ${S.trips.length?`<div class="card"><h3 style="margin-bottom:6px">排過的行程</h3>${S.trips.map(t=>S.tripEdit===t.id?`<div class="job" style="flex-wrap:wrap"><input type="text" id="tripName" value="${esc(t.name)}" style="flex:1;min-width:160px"><span class="row"><button class="btn primary small" data-trip-save="${t.id}">儲存</button><button class="btn small" data-trip-cancel>取消</button></span></div>`
+      : S.tripDel===t.id?`<div class="job note" style="flex-wrap:wrap">確定刪掉「${esc(t.name)}」?刪了就找不回來。<span class="row"><button class="btn small" data-trip-cancel>不要</button><button class="btn small danger" data-trip-delyes="${t.id}">刪掉</button></span></div>`
+      : `<div class="job" style="flex-wrap:wrap"><span style="min-width:0">${esc(t.name)}${t.status!=="完成"?` <span class="small ${t.status==="失敗"?"st-err":"muted"}">${esc(t.status)}</span>`:""}</span><span class="row"><button class="btn small" data-trip="${t.id}">打開</button><button class="btn small" data-trip-edit="${t.id}">改名稱</button><button class="btn small danger" data-trip-del="${t.id}">刪除</button></span></div>`).join("")}</div>`:""}
     ${!countries.length?`<div class="card empty"><b>還沒有收藏的地點</b>收進旅遊、餐廳類的貼文後,裡面提到的地點會出現在這裡,勾一勾就能排行程。也可以直接在下面寫想去哪裡。</div>`:""}
     <div class="card stack">
       ${countries.length?`<div><label class="f">去哪個國家</label><div class="chips" id="tc">${countries.map(([c,n])=>`<button class="chip ${T.country===c?"on":""}" data-v="${esc(c)}">${esc(c)}<i>${n}</i></button>`).join("")}</div></div>
@@ -390,6 +392,12 @@ function renderTrip(){
   $("#main").querySelectorAll("[data-sid]").forEach(c=>c.onchange=()=>{ T.picked[c.dataset.sid]=c.checked; });
   $("#pickAll") && ($("#pickAll").onclick=()=>{ save(); places.forEach(x=>T.picked[x.sid]=true); renderTrip(); });
   $("#main").querySelectorAll("[data-trip]").forEach(b=>b.onclick=()=>{ S.day=0; openTrip(+b.dataset.trip); });
+  $("#main").querySelectorAll("[data-trip-edit]").forEach(b=>b.onclick=()=>{ save(); S.tripEdit=+b.dataset.tripEdit; S.tripDel=null; renderTrip(); $("#tripName")?.focus(); });
+  $("#main").querySelectorAll("[data-trip-del]").forEach(b=>b.onclick=()=>{ save(); S.tripDel=+b.dataset.tripDel; S.tripEdit=null; renderTrip(); });
+  $("#main").querySelectorAll("[data-trip-cancel]").forEach(b=>b.onclick=()=>{ S.tripEdit=null; S.tripDel=null; renderTrip(); });
+  $("#main").querySelectorAll("[data-trip-save]").forEach(b=>b.onclick=async()=>{ const name=$("#tripName").value.trim(); if(!name){ toast("名稱不能空白"); return; }
+    try{ await api("/api/tz?a=trip&id="+b.dataset.tripSave,{method:"PUT",body:{name}}); S.tripEdit=null; await load(); renderTrip(); toast("改好了"); }catch(e){ toast(e.message); } });
+  $("#main").querySelectorAll("[data-trip-delyes]").forEach(b=>b.onclick=async()=>{ try{ await api("/api/tz?a=trip&id="+b.dataset.tripDelyes,{method:"DELETE"}); S.tripDel=null; await load(); renderTrip(); toast("刪掉了"); }catch(e){ toast(e.message); } });
   $("#gen").onclick=async()=>{
     save();
     const picked=savedPlaces(T.country).filter(x=>T.picked[x.sid]);
