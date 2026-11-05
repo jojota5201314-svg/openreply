@@ -318,6 +318,14 @@ function normCountry(c){ c=(c||"").trim(); return COUNTRY_ALIAS[c]||c; }
 function normRegion(r){ r=(r||"").trim().replace(/臺/g,"台"); return r.length>2 ? r.replace(/(市|縣|县|區|区|府)$/,"") : r; }
 // 地點名稱比對用:去掉空白、標點、括號裡的外文、分店字樣
 function placeKey(n){ return (n||"").toLowerCase().replace(/臺/g,"台").replace(/[（(][^）)]*[）)]/g,"").replace(/[\s·・\-_'’"“”.,，。!！?？:：/|]/g,""); }
+// 名稱整理:括號裡有中文就用括號裡的(通常是繁體),再去掉後面的英文
+function cleanName(n){
+  n=(n||"").trim(); const m=n.match(/[（(]([^）)]*)[）)]/);
+  if(m && /[\u4e00-\u9fff]/.test(m[1])) return m[1].trim();
+  const noParen=n.replace(/[（(][^）)]*[）)]/g,"").trim();
+  const cjk=noParen.replace(/\s+[A-Za-z0-9&®'’.\- ]+$/,"").trim();
+  return /[\u4e00-\u9fff]/.test(cjk) && cjk.length>=2 ? cjk : (noParen||n);
+}
 function samePlace(a,b){ if(!a||!b) return false; if(a===b) return true; const [s,l]=a.length<b.length?[a,b]:[b,a]; return s.length>=3 && l.startsWith(s) && l.length-s.length<=4; }
 // 收藏地點:同一個地點在好幾篇貼文出現時合併成一個
 function savedPlaces(country){
@@ -325,12 +333,12 @@ function savedPlaces(country){
   S.posts.filter(p=>p.status==="完成").forEach(p=>(p.places||[]).forEach((pl,i)=>{
     const c=normCountry(p.country); if(country && c!==country) return;
     const city=normRegion(pl.city||p.region), ck=placeKey(city);
-    let key=placeKey(pl.name); if(ck && key.startsWith(ck) && key.length-ck.length>=2) key=key.slice(ck.length);
+    const nm=cleanName(pl.name); let key=placeKey(nm); if(ck && key.startsWith(ck) && key.length-ck.length>=2) key=key.slice(ck.length);
     if(!key) return;
     let g=groups.find(x=>(!x.city||!city||x.city===city) && samePlace(x.key,key));
-    if(!g){ g={key, sid:p.id+":"+i, name:pl.name, type:pl.type, city, address:pl.address||"", notes:[], lat:pl.lat, lng:pl.lng, country:c, region:normRegion(p.region)||city, from:[]}; groups.push(g); }
+    if(!g){ g={key, sid:p.id+":"+i, name:nm, type:pl.type, city, address:pl.address||"", notes:[], lat:pl.lat, lng:pl.lng, country:c, region:normRegion(p.region)||city, from:[]}; groups.push(g); }
     else {
-      if((pl.name||"").length<g.name.length) g.name=pl.name; // 用比較短、乾淨的名字
+      if(nm.length<g.name.length) g.name=nm; // 用比較短、乾淨的名字
       if(!g.address && pl.address) g.address=pl.address;
       if(typeof g.lat!=="number" && typeof pl.lat==="number"){ g.lat=pl.lat; g.lng=pl.lng; }
       if(!g.city && city) g.city=city;

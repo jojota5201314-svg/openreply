@@ -1,4 +1,13 @@
 {
-  "crons": [{ "path": "/api/cron/refresh", "schedule": "17 19 * * *" }],
-  "functions": { "api/**/*.js": { "maxDuration": 60 } }
+  "crons": [
+    {
+      "path": "/api/cron/refresh",
+      "schedule": "17 19 * * *"
+    }
+  ],
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 300
+    }
+  }
 }

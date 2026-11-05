@@ -111,10 +111,10 @@ export function tripRequest(p, places) {
   return L.join("\n");
 }
 export async function planTrip(params, places) {
-  return parseJson(await claude(SYS_TRIP, tripRequest(params, places) + "\n\n" + SCHEMA_TRIP, { maxTokens: 7000 }));
+  return parseJson(await claude(SYS_TRIP, tripRequest(params, places) + "\n\n" + SCHEMA_TRIP, { maxTokens: 14000, timeoutMs: 270000 }));
 }
 export async function refineTrip(params, places, plan, instruction) {
   const u = tripRequest(params, places) + "\n\n【目前的行程】\n" + JSON.stringify(plan) + "\n\n【使用者想要這樣改】\n" + instruction +
     "\n\n照使用者的要求修改,沒提到的部分盡量保持原樣。輸出完整的新行程。\n" + SCHEMA_TRIP;
-  return parseJson(await claude(SYS_TRIP, u, { maxTokens: 7000 }));
+  return parseJson(await claude(SYS_TRIP, u, { maxTokens: 14000, timeoutMs: 270000 }));
 }
