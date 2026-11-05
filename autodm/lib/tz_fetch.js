@@ -31,11 +31,11 @@ export function normalize(platform, item) {
   const it = item || {};
   const imgs = [];
   const push = (x) => { if (typeof x === "string" && x.startsWith("http") && !imgs.includes(x)) imgs.push(x); };
-  push(it.displayUrl); (it.images || []).forEach((x) => push(typeof x === "string" ? x : x?.url_original || x?.url));
-  (it.childPosts || []).forEach((c) => push(c?.displayUrl));
+  push(it.displayUrl); (Array.isArray(it.images) ? it.images : []).forEach((x) => push(typeof x === "string" ? x : x?.url_original || x?.url));
+  (Array.isArray(it.childPosts) ? it.childPosts : []).forEach((c) => push(c?.displayUrl));
   push(it.videoMeta?.coverUrl); push(it.cover); push(it.coverUrl); push(it.thumbnail);
   push(it.media?.thumbnail); push(it.media?.thumbnail_url); push(it.video?.thumbnail);
-  (it.media || []).forEach((m) => push(m?.thumbnail || m?.photo_image?.uri));
+  (Array.isArray(it.media) ? it.media : []).forEach((m) => push(m?.thumbnail || m?.photo_image?.uri));
   return {
     platform,
     author: pick(typeof it.author === "string" ? it.author : "", it.owner?.name, it.owner?.username, it.page_context?.name, it.ownerUsername, it.ownerFullName, it.authorMeta?.name, it.author?.nickname, it.user?.nickname, it.nickname, it.pageName, it.user?.name),
