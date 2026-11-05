@@ -3,7 +3,7 @@ import { env } from "./env.js";
 
 export const CATS = ["旅遊", "餐廳美食", "食譜", "日常生活", "穿搭美妝", "健身運動", "居家手作", "知識學習", "購物好物", "其他"];
 
-export async function claude(system, user, { images = [], maxTokens = 6000, timeoutMs = 52000 } = {}) {
+export async function claude(system, user, { images = [], maxTokens = 6000, timeoutMs = 150000, asJson = false } = {}) {
   const key = env("ANTHROPIC_API_KEY");
   const model = process.env.TZ_MODEL || "claude-sonnet-5-5";
   const send = async (imgs) => {
