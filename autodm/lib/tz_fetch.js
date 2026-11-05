@@ -79,7 +79,7 @@ async function douyinPage(id, dbg) {
         is_video: !it.images?.length,
       };
     }
-    dbg.push("no_item");
+    dbg.push("no_item:" + JSON.stringify(Object.entries(data.loaderData || {}).map(([k, v]) => [k, Object.keys(v || {}), v?.videoInfoRes ? Object.keys(v.videoInfoRes) : null, v?.videoInfoRes?.filter_list])).slice(0, 600));
   }
   return null;
 }
@@ -127,7 +127,7 @@ async function fetchFacebook(url) {
     if (desc || title) page = { text: desc, title: title, images: img ? [img] : [] };
   } catch (e) { dbg.push("og_err:" + e.message); }
   if (page?.text && page.text.length > 20) {
-    const by = (page.title.match(/^(.+?)\s*[|｜-]/) || [])[1] || "";
+    const by = "";
     return { ok: true, platform: "臉書", debug: dbg.join(" | "),
       post: { platform: "臉書", author: by, title: page.title, text: page.text, transcript: "", location: "", images: page.images, is_video: /reel|video|watch/.test(finalUrl) } };
   }
