@@ -118,6 +118,7 @@ export function tripRequest(p, places) {
   if (p.interests?.length) L.push("喜歡:" + p.interests.join("、"));
   L.push("可以另外推薦收藏以外的地點:" + (p.auto_add !== false ? "可以,幫我補足行程" : "不要,只排我收藏的地點"));
   if (p.extra) L.push("其他需求:" + p.extra);
+  if (p.booked?.length) L.push("已經訂好的住宿(行程每天要從這裡出發、最後回到這裡):\n" + p.booked.map((h) => `第 ${h.from}~${h.to} 天晚上:${h.name}${h.address ? "(" + h.address + ")" : ""}`).join("\n"));
   if (places?.length) {
     L.push("\n【我收藏的地點】(一定要排進去,排不下就寫在 overview)");
     for (const x of places) L.push(JSON.stringify({ saved_id: x.sid, name: x.name, type: x.type, city: x.city, address: x.address, note: x.note }));
@@ -154,7 +155,8 @@ export async function planDay(params, places, outline, i) {
   const mine = (places || []).filter((x) => ids.has(x.sid));
   const ctx = [`整趟:${outline.title || ""}(共 ${outline.days.length} 天)`, `步調:${params.pace || "適中"}`, `主要交通:${params.transport || "大眾運輸"}`,
     `同行:${params.people || "未說明"}`, params.interests?.length ? "喜歡:" + params.interests.join("、") : "", params.extra ? "其他需求:" + params.extra : "",
-    `住宿區域:${(outline.hotels || []).map((h) => h.area + "(" + (h.nights || "") + ")").join("、")}`,
+    (() => { const b = (params.booked || []).find((h) => i + 1 >= h.from && i + 1 <= h.to) || (params.booked || []).find((h) => i === h.to);
+      return b ? `這天住:${b.name}${b.address ? "(" + b.address + ")" : ""},從飯店出發` : `住宿區域:${(outline.hotels || []).map((h) => h.area + "(" + (h.nights || "") + ")").join("、")}`; })(),
     `\n現在排第 ${i + 1} 天:${d.date || ""} 主要在 ${d.area || ""},主題 ${d.theme || ""}`,
     `這天一定要去的收藏地點:\n${mine.map((x) => JSON.stringify({ saved_id: x.sid, name: x.name, type: x.type, city: x.city, address: x.address, note: x.note })).join("\n") || "(沒有)"}`,
     `可以參考的點子:${(d.ideas || []).join("、") || "(自由安排)"}`,

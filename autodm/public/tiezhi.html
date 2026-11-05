@@ -355,7 +355,8 @@ async function openTrip(id){ try{ const t=await api("/api/tz?a=trip&id="+id); S.
 function renderTrip(){
   if(S.trip) return renderItin();
   const countries=counts(savedPlaces("").map(x=>({c:x.country})),"c");
-  const T=S.tp ||= {country:countries[0]?.[0]||"", regions:[], picked:{}, days:3, start:"", pace:"適中", transport:"大眾運輸", stay:"一間住到底", budget:"中等", people:"", interests:[], auto:true, extra:"", dest:""};
+  const T=S.tp ||= {country:countries[0]?.[0]||"", regions:[], picked:{}, days:3, start:"", pace:"適中", transport:"大眾運輸", stay:"一間住到底", budget:"中等", people:"", interests:[], auto:true, extra:"", dest:"", stays:[]};
+  T.stays ||= [];
   const all=savedPlaces(T.country); const regs=counts(all.map(x=>({r:x.region})),"r");
   const places=T.regions.length?all.filter(x=>T.regions.includes(x.region)):all;
   const seg=(id,opts,val)=>`<div class="seg" id="${id}">${opts.map(o=>`<button class="chip ${val===o?"on":""}" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>`;
@@ -382,6 +383,15 @@ function renderTrip(){
       <div><label class="f" for="tPeople">跟誰去</label><input type="text" id="tPeople" placeholder="例:兩個大人、跟老公" value="${esc(T.people)}"></div>
       <label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="tAuto" ${T.auto?"checked":""}> 可以幫我補推薦的地點,把行程排滿</label>
       <div><label class="f" for="tExtra">其他想說的</label><input type="text" id="tExtra" placeholder="例:第一天下午才到、不想太早起" value="${esc(T.extra)}"></div>
+      <div class="staybox stack" style="gap:8px"><b>🏨 已經訂好的住宿(可不填)</b>
+        <span class="small muted">填了之後,AI 會從飯店出發排行程;沒訂也沒關係,排好後還可以在每一天再設定。</span>
+        ${T.stays.map((h,k)=>`<div class="row" style="justify-content:space-between;align-items:flex-start;background:var(--paper);border-radius:8px;padding:8px 10px"><div style="min-width:0"><span class="small muted">第 ${h.from} 天到第 ${h.to} 天晚上</span><br><b>${esc(h.name)}</b>${h.address?`<div class="small">📍 ${esc(h.address)}</div>`:""}
+          <div class="links"><a href="https://www.google.com/maps/search/?api=1&query=${gq(h.address||h.name)}" target="_blank" rel="noopener">看地圖確認位置 ↗</a></div></div><button class="btn small danger" data-stay-rm="${k}">✕</button></div>`).join("")}
+        <input type="text" id="nsName" placeholder="飯店名稱,例:上海外灘W酒店">
+        <input type="text" id="nsAddr" placeholder="地址(訂房確認信或訂房網站上有)">
+        <div class="row small">第<select id="nsFrom" style="width:auto">${Array.from({length:T.days},(_,j)=>`<option value="${j+1}">${j+1}</option>`).join("")}</select>天晚上 到 第<select id="nsTo" style="width:auto">${Array.from({length:T.days},(_,j)=>`<option value="${j+1}" ${j+1===T.days?"selected":""}>${j+1}</option>`).join("")}</select>天晚上
+          <button class="btn small" id="nsAdd">＋ 加這間住宿</button></div>
+      </div>
       <div class="row"><button class="btn primary" id="gen">✨ 一鍵生成行程</button><span class="small muted" id="genSt"></span></div>
     </div></div>`;
   const save=()=>{ T.days=Math.max(1,Math.min(10,+$("#tDays").value||3)); T.start=$("#tStart").value; T.people=$("#tPeople").value; T.extra=$("#tExtra").value; T.auto=$("#tAuto").checked; if($("#tDest")) T.dest=$("#tDest").value; };
@@ -391,6 +401,9 @@ function renderTrip(){
   $("#tr") && ($("#tr").onclick=e=>{ const b=e.target.closest("[data-v]"); if(b){ save(); const v=b.dataset.v; T.regions=T.regions.includes(v)?T.regions.filter(x=>x!==v):[...T.regions,v]; renderTrip(); } });
   $("#sInt").onclick=e=>{ const b=e.target.closest("[data-v]"); if(b){ save(); const v=b.dataset.v; T.interests=T.interests.includes(v)?T.interests.filter(x=>x!==v):[...T.interests,v]; renderTrip(); } };
   $("#main").querySelectorAll("[data-sid]").forEach(c=>c.onchange=()=>{ T.picked[c.dataset.sid]=c.checked; });
+  $("#nsAdd").onclick=()=>{ save(); const name=$("#nsName").value.trim(), address=$("#nsAddr").value.trim(); if(!name&&!address){ toast("至少填飯店名稱或地址"); return; }
+    let a=+$("#nsFrom").value, b=+$("#nsTo").value; if(b<a) [a,b]=[b,a]; T.stays.push({name:name||address,address,from:a,to:b}); renderTrip(); toast("加好了"); };
+  $("#main").querySelectorAll("[data-stay-rm]").forEach(b=>b.onclick=()=>{ save(); T.stays.splice(+b.dataset.stayRm,1); renderTrip(); });
   $("#pickAll") && ($("#pickAll").onclick=()=>{ save(); places.forEach(x=>T.picked[x.sid]=true); renderTrip(); });
   $("#main").querySelectorAll("[data-trip]").forEach(b=>b.onclick=()=>{ S.day=0; S.editMode=false; S.stopEdit=null; openTrip(+b.dataset.trip); });
   $("#main").querySelectorAll("[data-trip-content]").forEach(b=>b.onclick=()=>{ S.day=0; S.editMode=true; S.stopEdit=null; openTrip(+b.dataset.tripContent); });
@@ -404,7 +417,8 @@ function renderTrip(){
     save();
     const picked=savedPlaces(T.country).filter(x=>T.picked[x.sid]);
     if(!picked.length && !T.dest && !T.country){ toast("先勾地點,或寫想去哪裡"); return; }
-    const params={country:T.country||T.dest, region:T.regions.join("、"), days:T.days, start_date:T.start, pace:T.pace, transport:T.transport, stay:T.stay, budget:T.budget, people:T.people, interests:T.interests, auto_add:T.auto, extra:T.extra};
+    const params={country:T.country||T.dest, region:T.regions.join("、"), days:T.days, start_date:T.start, pace:T.pace, transport:T.transport, stay:T.stay, budget:T.budget, people:T.people, interests:T.interests, auto_add:T.auto, extra:T.extra,
+      booked:T.stays.filter(h=>h.from<=T.days).map(h=>({...h, to:Math.min(h.to,T.days)}))};
     $("#gen").disabled=true; $("#genSt").textContent="排行程中,大約 30 秒~1 分鐘…";
     try{ const r=await api("/api/tz?a=trips",{method:"POST",body:{params,places:picked}}); await load(); schedulePoll(); S.day=0; await openTrip(r.id); }
     catch(e){ $("#gen").disabled=false; $("#genSt").textContent=e.message; }
@@ -583,7 +597,7 @@ async function renderSet(){
     <div class="card small"><h3 style="margin-bottom:6px">狀態</h3>
       <div>抓貼文服務(Apify):${s.apify?"✅ 已設定":"❌ 還沒設定"}</div>
       <div>AI 整理(Claude):${s.ai?"✅ 已設定":"❌ 還沒設定 —— 到 Vercel 加 ANTHROPIC_API_KEY"}</div></div>
-    <div class="row"><button class="btn small" id="logout">登出</button></div>
+    <div class="row" style="justify-content:space-between"><button class="btn small" id="logout">登出</button><span class="small muted">版本 11/06 05:20</span></div>
   </div>`;
   $("#cpUrl").onclick=()=>copy(s.url);
   $("#rot").onclick=async()=>{ const r=await api("/api/tz?a=share",{method:"POST",body:{rotate:true}}).catch(e=>toast(e.message)); if(r){ s.url=r.url; toast("換好了,記得改捷徑裡的網址"); } };

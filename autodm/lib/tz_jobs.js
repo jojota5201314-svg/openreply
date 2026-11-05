@@ -53,6 +53,8 @@ export async function runTrip(id) {
       const o = await planOutline(t.params || {}, t.places || []);
       if (!Array.isArray(o?.days) || !o.days.length) throw new Error("AI 回傳的行程格式不對,再試一次");
       o.days = o.days.map((d, i) => ({ ...d, day: i + 1, stops: [] }));
+      const booked = (t.params || {}).booked || [];
+      if (booked.length) { o.stays = {}; for (const h of booked) for (let k = h.from; k <= h.to; k++) if (k - 1 < o.days.length) o.stays[k - 1] = { name: h.name, address: h.address || "" }; }
       await tq("UPDATE tz_trips SET status = '排細節', error = '', plan = $2, name = $3, pending = '0' WHERE id = $1", [id, JSON.stringify(o), o.title || t.name]);
       return { next: true };
     }
