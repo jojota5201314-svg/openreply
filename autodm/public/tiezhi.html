@@ -174,9 +174,9 @@ async function load(){
 let pollT=null;
 function schedulePoll(){
   clearTimeout(pollT);
-  const busy=S.posts.some(p=>BUSY.includes(p.status)) || S.trips.some(t=>["生成中","修改中"].includes(t.status));
+  const busy=S.posts.some(p=>BUSY.includes(p.status)) || S.trips.some(t=>["生成中","修改中","排細節"].includes(t.status));
   if(!busy) return;
-  pollT=setTimeout(async()=>{ try{ await load(); if(S.tab==="trip" && S.trip){ const t=S.trips.find(x=>x.id===S.trip.id); if(t && t.status!==S.trip.status) await openTrip(S.trip.id); } else if(!S.typing) render(); }catch{} schedulePoll(); }, 4000);
+  pollT=setTimeout(async()=>{ try{ await load(); if(S.tab==="trip" && S.trip){ const t=S.trips.find(x=>x.id===S.trip.id); if(t && (t.status!==S.trip.status || t.status==="排細節") && S.stopEdit==null && !S.stayEdit) await openTrip(S.trip.id); } else if(!S.typing) render(); }catch{} schedulePoll(); }, 4000);
 }
 async function boot(){
   const me=await fetch("/api/admin/login").then(r=>r.json()).catch(()=>({}));
@@ -462,7 +462,7 @@ function renderItin(){
     $("#back").onclick=()=>{ S.trip=null; renderTrip(); }; return;
   }
   const P=t.plan, days=P.days||[]; if(S.day>=days.length) S.day=0;
-  const d=days[S.day]||{stops:[]}; const country=t.params?.country||""; const stay=(P.stays||{})[S.day]||null; const route=dayRouteLink(d,country,stay); const busy=["生成中","修改中"].includes(t.status);
+  const d=days[S.day]||{stops:[]}; const country=t.params?.country||""; const stay=(P.stays||{})[S.day]||null; const route=dayRouteLink(d,country,stay); const busy=["生成中","修改中","排細節"].includes(t.status);
   $("#main").innerHTML=`<div class="stack">
     <div class="row" style="justify-content:space-between"><button class="btn small" id="back">← 回行程列表</button><span class="row"><button class="btn small ${S.editMode?"primary":""}" id="editIt">${S.editMode?"✓ 編輯完成":"✏️ 編輯行程"}</button><button class="btn small" id="cpIt">複製成文字</button><button class="btn small danger" id="delIt">刪掉</button></span></div>
     ${S.editMode?`<div class="note small">編輯中:每一站都可以改內容、調順序、移到別天或刪掉,也可以自己加一站。改完會自動存。</div>
@@ -471,7 +471,7 @@ function renderItin(){
       <div class="row"><button class="btn small primary" id="edTitleSave">儲存名稱和說明</button></div></div>`:""}
     <div id="delAsk" hidden class="note row" style="justify-content:space-between">確定刪掉這個行程?<span class="row"><button class="btn small" id="delNo">不要</button><button class="btn small danger" id="delYes">刪掉</button></span></div>
     <div><h2>${esc(P.title||t.name)}</h2>${P.overview?`<p class="muted" style="margin:6px 0 0">${esc(P.overview)}</p>`:""}</div>
-    ${busy?`<div class="note">AI 正在修改行程,好了會自動更新…</div>`:""}${t.error&&!busy?`<div class="note st-err">${esc(t.error)}</div>`:""}
+    ${busy?`<div class="note">${t.status==="排細節"?`AI 正在一天一天排,目前排到第 ${Number(t.pending||0)+1} 天(共 ${days.length} 天),好了會自動更新…`:"AI 正在修改行程,好了會自動更新…"}</div>`:""}${t.error&&!busy?`<div class="note st-err">${esc(t.error)}</div>`:""}
     <div class="daytabs" id="dt">${days.map((x,i)=>`<button class="chip ${i===S.day?"on":""}" data-d="${i}">第 ${x.day||i+1} 天${x.date?" "+esc(String(x.date).slice(5)):""}</button>`).join("")}</div>
     <div id="map" class="map"></div>
     <div class="card">
@@ -494,7 +494,7 @@ function renderItin(){
           <select class="btn small" data-mv="${i}" style="width:auto;padding:3px 8px" aria-label="移到別天"><option value="">移到…</option>${days.map((x,j)=>j===S.day?"":`<option value="${j}">第 ${x.day||j+1} 天</option>`).join("")}</select>
           <button class="btn small danger" data-rm="${i}" aria-label="刪掉這站">✕</button>`:""}</div>
         ${s.next?`<div class="next">→ ${esc(s.next.mode||"")}${s.next.minutes?` 約 ${esc(s.next.minutes)} 分鐘`:""}${s.next.detail?`:${esc(s.next.detail)}`:""}</div>`:""}
-      </div></div>`).join("")||`<p class="muted">這天還沒有安排</p>`}
+      </div></div>`).join("")||`<p class="muted">${t.status==="排細節"?"這天還在排,等一下會自動出現…":"這天還沒有安排"}</p>`}
       ${S.stopEdit==="new"?stopForm({}):S.editMode?`<div class="row" style="margin-top:10px"><button class="btn small" id="addStop">＋ 自己加一站</button></div>`:""}
       ${(t.places||[]).length?`<div class="row" style="margin-top:10px"><select id="addSaved" style="flex:1;min-width:180px"><option value="">＋ 從收藏加一個地點到這天</option>${t.places.map(x=>`<option value="${esc(x.sid)}">${esc(x.name)}</option>`).join("")}</select></div>`:""}
     </div>

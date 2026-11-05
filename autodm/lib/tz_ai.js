@@ -29,6 +29,7 @@ export async function claude(system, user, { images = [], maxTokens = 6000, time
     if (res.status === 429 || res.status === 529) throw new Error("AI 現在太忙,等一下再試");
     throw new Error(`AI 出錯了(${res.status}):${m.slice(0, 200)}`);
   }
+  if (res.j.stop_reason === "max_tokens") throw new Error("內容太長,AI 沒寫完");
   return (res.j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
 }
 
@@ -117,4 +118,34 @@ export async function refineTrip(params, places, plan, instruction) {
   const u = tripRequest(params, places) + "\n\n【目前的行程】\n" + JSON.stringify(plan) + "\n\n【使用者想要這樣改】\n" + instruction +
     "\n\n照使用者的要求修改,沒提到的部分盡量保持原樣。輸出完整的新行程。\n" + SCHEMA_TRIP;
   return parseJson(await claude(SYS_TRIP, u, { maxTokens: 14000, timeoutMs: 270000 }));
+}
+
+// ---- 分段排行程:先排大綱(每天去哪區、放哪些收藏點),再一天一天排細節 ----
+const SCHEMA_OUTLINE = `只輸出這個格式的 JSON(先排大綱,不用排每一站的細節):
+{"title":"行程名稱","overview":"整體說明 2~3 句",
+"days":[{"day":1,"date":"YYYY-MM-DD 或空字串","area":"今天主要在哪一區","theme":"今天的主題","saved_ids":["這天要去的收藏地點 saved_id"],"ideas":["這天另外推薦的點或要吃什麼,沒有就空陣列"]}],
+"hotels":[{"area":"住宿區域","nights":"第幾晚","why":"為什麼住這區","suggestions":[{"name":"飯店名稱","level":"平價|中等|高級","price":"每晚大約多少"}]}],
+"transport":{"arrival":"怎麼抵達、從機場/車站到市區","local":"當地交通:票卡、App","tips":["交通小提醒"]},
+"budget":"每人大約花費(住宿、交通、吃、門票)","checklist":["出發前要準備的事"]}
+同一區的收藏地點放在同一天,每天的量要符合步調。`;
+const SCHEMA_DAY = `只輸出這個格式的 JSON(只排這一天):
+{"stops":[{"time":"09:00","name":"地點名稱","city":"城市","type":"景點|餐廳|咖啡廳|甜點|小吃|購物|住宿|其他","saved_id":"收藏地點的 saved_id 或 null","lat":數字,"lng":數字,"stay":"建議停留","note":"要做什麼、必點(一兩句)","cost":"大約花費",
+ "next":{"mode":"步行|地鐵|公車|計程車|開車|火車|高鐵|渡輪","minutes":數字,"detail":"怎麼去下一站"}}]}
+最後一站的 next 填 null。要排早餐/午餐/晚餐。`;
+export async function planOutline(params, places) {
+  return parseJson(await claude(SYS_TRIP, tripRequest(params, places) + "\n\n" + SCHEMA_OUTLINE, { maxTokens: 8000, timeoutMs: 270000 }));
+}
+export async function planDay(params, places, outline, i) {
+  const d = outline.days[i] || {};
+  const ids = new Set(d.saved_ids || []);
+  const mine = (places || []).filter((x) => ids.has(x.sid));
+  const ctx = [`整趟:${outline.title || ""}(共 ${outline.days.length} 天)`, `步調:${params.pace || "適中"}`, `主要交通:${params.transport || "大眾運輸"}`,
+    `同行:${params.people || "未說明"}`, params.interests?.length ? "喜歡:" + params.interests.join("、") : "", params.extra ? "其他需求:" + params.extra : "",
+    `住宿區域:${(outline.hotels || []).map((h) => h.area + "(" + (h.nights || "") + ")").join("、")}`,
+    `\n現在排第 ${i + 1} 天:${d.date || ""} 主要在 ${d.area || ""},主題 ${d.theme || ""}`,
+    `這天一定要去的收藏地點:\n${mine.map((x) => JSON.stringify({ saved_id: x.sid, name: x.name, type: x.type, city: x.city, address: x.address, note: x.note })).join("\n") || "(沒有)"}`,
+    `可以參考的點子:${(d.ideas || []).join("、") || "(自由安排)"}`,
+    params.auto_add !== false ? "可以補推薦的地點,note 開頭寫「推薦:」" : "不要加收藏以外的景點(吃飯可以推薦)"].filter(Boolean).join("\n");
+  const out = parseJson(await claude(SYS_TRIP, ctx + "\n\n" + SCHEMA_DAY, { maxTokens: 6000, timeoutMs: 270000 }));
+  return Array.isArray(out.stops) ? out.stops : [];
 }
