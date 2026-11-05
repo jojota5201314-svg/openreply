@@ -13,7 +13,9 @@ export async function claude(system, user, { images = [], maxTokens = 6000, time
     try {
       const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", signal: ctl.signal,
         headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: "user", content }] }) });
+        body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: "user", content }],
+          ...(asJson ? { tools: [{ name: "save_result", description: "把整理好的結果交出來。照使用者訊息裡說明的 JSON 格式填。", input_schema: { type: "object", additionalProperties: true } }],
+            tool_choice: { type: "tool", name: "save_result" } } : {}) }) });
       const j = await r.json().catch(() => ({}));
       return { ok: r.ok, status: r.status, j };
     } finally { clearTimeout(t); }
@@ -30,6 +32,16 @@ export async function claude(system, user, { images = [], maxTokens = 6000, time
     throw new Error(`AI 出錯了(${res.status}):${m.slice(0, 200)}`);
   }
   if (res.j.stop_reason === "max_tokens") throw new Error("內容太長,AI 沒寫完");
+  if (asJson) {
+    const tu = (res.j.content || []).find((b) => b.type === "tool_use");
+    let inp = tu?.input;
+    if (inp && typeof inp === "object") {
+      const keys = Object.keys(inp);
+      if (keys.length === 1 && typeof inp[keys[0]] === "string" && inp[keys[0]].trim().startsWith("{")) { try { inp = parseJson(inp[keys[0]]); } catch {} }
+      return inp;
+    }
+    throw new Error("AI 沒有交出結果,再試一次");
+  }
   return (res.j.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
 }
 
@@ -73,7 +85,7 @@ export async function analyze(post) {
   if (r.location) parts.push("【貼文標的地點】" + r.location);
   const imgs = (r.images || []).slice(0, 3);
   if (imgs.length) parts.push(`【附上 ${imgs.length} 張貼文的圖片/封面,上面的字也要讀】`);
-  const out = parseJson(await claude(SYS_ANALYZE, parts.join("\n\n") + "\n\n" + SCHEMA_ANALYZE, { images: imgs, maxTokens: 5000 }));
+  const out = await claude(SYS_ANALYZE, parts.join("\n\n") + "\n\n" + SCHEMA_ANALYZE, { images: imgs, maxTokens: 5000, asJson: true });
   if (!CATS.includes(out.category)) out.category = "其他";
   out.places = Array.isArray(out.places) ? out.places.slice(0, 40) : [];
   out.tags = Array.isArray(out.tags) ? out.tags.slice(0, 8) : [];
@@ -112,12 +124,12 @@ export function tripRequest(p, places) {
   return L.join("\n");
 }
 export async function planTrip(params, places) {
-  return parseJson(await claude(SYS_TRIP, tripRequest(params, places) + "\n\n" + SCHEMA_TRIP, { maxTokens: 14000, timeoutMs: 270000 }));
+  return await claude(SYS_TRIP, tripRequest(params, places) + "\n\n" + SCHEMA_TRIP, { maxTokens: 14000, timeoutMs: 270000, asJson: true });
 }
 export async function refineTrip(params, places, plan, instruction) {
   const u = tripRequest(params, places) + "\n\n【目前的行程】\n" + JSON.stringify(plan) + "\n\n【使用者想要這樣改】\n" + instruction +
     "\n\n照使用者的要求修改,沒提到的部分盡量保持原樣。輸出完整的新行程。\n" + SCHEMA_TRIP;
-  return parseJson(await claude(SYS_TRIP, u, { maxTokens: 14000, timeoutMs: 270000 }));
+  return await claude(SYS_TRIP, u, { maxTokens: 14000, timeoutMs: 270000, asJson: true });
 }
 
 // ---- 分段排行程:先排大綱(每天去哪區、放哪些收藏點),再一天一天排細節 ----
@@ -133,7 +145,7 @@ const SCHEMA_DAY = `只輸出這個格式的 JSON(只排這一天):
  "next":{"mode":"步行|地鐵|公車|計程車|開車|火車|高鐵|渡輪","minutes":數字,"detail":"怎麼去下一站"}}]}
 最後一站的 next 填 null。要排早餐/午餐/晚餐。`;
 export async function planOutline(params, places) {
-  return parseJson(await claude(SYS_TRIP, tripRequest(params, places) + "\n\n" + SCHEMA_OUTLINE, { maxTokens: 8000, timeoutMs: 270000 }));
+  return await claude(SYS_TRIP, tripRequest(params, places) + "\n\n" + SCHEMA_OUTLINE, { maxTokens: 8000, timeoutMs: 270000, asJson: true });
 }
 export async function planDay(params, places, outline, i) {
   const d = outline.days[i] || {};
@@ -146,6 +158,6 @@ export async function planDay(params, places, outline, i) {
     `這天一定要去的收藏地點:\n${mine.map((x) => JSON.stringify({ saved_id: x.sid, name: x.name, type: x.type, city: x.city, address: x.address, note: x.note })).join("\n") || "(沒有)"}`,
     `可以參考的點子:${(d.ideas || []).join("、") || "(自由安排)"}`,
     params.auto_add !== false ? "可以補推薦的地點,note 開頭寫「推薦:」" : "不要加收藏以外的景點(吃飯可以推薦)"].filter(Boolean).join("\n");
-  const out = parseJson(await claude(SYS_TRIP, ctx + "\n\n" + SCHEMA_DAY, { maxTokens: 6000, timeoutMs: 270000 }));
+  const out = await claude(SYS_TRIP, ctx + "\n\n" + SCHEMA_DAY, { maxTokens: 6000, timeoutMs: 270000, asJson: true });
   return Array.isArray(out.stops) ? out.stops : [];
 }
