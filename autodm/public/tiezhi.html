@@ -361,7 +361,7 @@ function renderTrip(){
   $("#main").innerHTML=`<div class="stack"><h2>一鍵排行程</h2>
     ${S.trips.length?`<div class="card"><h3 style="margin-bottom:6px">排過的行程</h3>${S.trips.map(t=>S.tripEdit===t.id?`<div class="job" style="flex-wrap:wrap"><input type="text" id="tripName" value="${esc(t.name)}" style="flex:1;min-width:160px"><span class="row"><button class="btn primary small" data-trip-save="${t.id}">儲存</button><button class="btn small" data-trip-cancel>取消</button></span></div>`
       : S.tripDel===t.id?`<div class="job note" style="flex-wrap:wrap">確定刪掉「${esc(t.name)}」?刪了就找不回來。<span class="row"><button class="btn small" data-trip-cancel>不要</button><button class="btn small danger" data-trip-delyes="${t.id}">刪掉</button></span></div>`
-      : `<div class="job" style="flex-wrap:wrap"><span style="min-width:0">${esc(t.name)}${t.status!=="完成"?` <span class="small ${t.status==="失敗"?"st-err":"muted"}">${esc(t.status)}</span>`:""}</span><span class="row"><button class="btn small" data-trip="${t.id}">打開</button><button class="btn small" data-trip-edit="${t.id}">改名稱</button><button class="btn small danger" data-trip-del="${t.id}">刪除</button></span></div>`).join("")}</div>`:""}
+      : `<div class="job" style="flex-wrap:wrap"><span style="min-width:0">${esc(t.name)}${t.status!=="完成"?` <span class="small ${t.status==="失敗"?"st-err":"muted"}">${esc(t.status)}</span>`:""}</span><span class="row"><button class="btn small" data-trip="${t.id}">打開</button>${t.status==="完成"?`<button class="btn small" data-trip-content="${t.id}">編輯內容</button>`:""}<button class="btn small" data-trip-edit="${t.id}">改名稱</button><button class="btn small danger" data-trip-del="${t.id}">刪除</button></span></div>`).join("")}</div>`:""}
     ${!countries.length?`<div class="card empty"><b>還沒有收藏的地點</b>收進旅遊、餐廳類的貼文後,裡面提到的地點會出現在這裡,勾一勾就能排行程。也可以直接在下面寫想去哪裡。</div>`:""}
     <div class="card stack">
       ${countries.length?`<div><label class="f">去哪個國家</label><div class="chips" id="tc">${countries.map(([c,n])=>`<button class="chip ${T.country===c?"on":""}" data-v="${esc(c)}">${esc(c)}<i>${n}</i></button>`).join("")}</div></div>
@@ -391,7 +391,8 @@ function renderTrip(){
   $("#sInt").onclick=e=>{ const b=e.target.closest("[data-v]"); if(b){ save(); const v=b.dataset.v; T.interests=T.interests.includes(v)?T.interests.filter(x=>x!==v):[...T.interests,v]; renderTrip(); } };
   $("#main").querySelectorAll("[data-sid]").forEach(c=>c.onchange=()=>{ T.picked[c.dataset.sid]=c.checked; });
   $("#pickAll") && ($("#pickAll").onclick=()=>{ save(); places.forEach(x=>T.picked[x.sid]=true); renderTrip(); });
-  $("#main").querySelectorAll("[data-trip]").forEach(b=>b.onclick=()=>{ S.day=0; openTrip(+b.dataset.trip); });
+  $("#main").querySelectorAll("[data-trip]").forEach(b=>b.onclick=()=>{ S.day=0; S.editMode=false; S.stopEdit=null; openTrip(+b.dataset.trip); });
+  $("#main").querySelectorAll("[data-trip-content]").forEach(b=>b.onclick=()=>{ S.day=0; S.editMode=true; S.stopEdit=null; openTrip(+b.dataset.tripContent); });
   $("#main").querySelectorAll("[data-trip-edit]").forEach(b=>b.onclick=()=>{ save(); S.tripEdit=+b.dataset.tripEdit; S.tripDel=null; renderTrip(); $("#tripName")?.focus(); });
   $("#main").querySelectorAll("[data-trip-del]").forEach(b=>b.onclick=()=>{ save(); S.tripDel=+b.dataset.tripDel; S.tripEdit=null; renderTrip(); });
   $("#main").querySelectorAll("[data-trip-cancel]").forEach(b=>b.onclick=()=>{ S.tripEdit=null; S.tripDel=null; renderTrip(); });
@@ -423,7 +424,7 @@ function dayRouteLink(d,country,stay){
 function itinText(t){
   const P=t.plan; const L=[P.title||t.name, P.overview||"", ""];
   (P.days||[]).forEach((d,di)=>{ L.push(`【第 ${d.day} 天】${d.date||""} ${d.area||""} ${d.theme?"・"+d.theme:""}`); const st=(P.stays||{})[di]; if(st) L.push(`🏨 今晚住:${st.name}${st.address?`(${st.address})`:""}`);
-    (d.stops||[]).forEach(s=>{ L.push(`${s.time||""} ${s.name}${s.stay?`(${s.stay})`:""}`); if(s.note) L.push("  "+s.note); if(s.next) L.push(`  → ${s.next.mode||""} ${s.next.minutes?s.next.minutes+" 分鐘":""} ${s.next.detail||""}`); }); L.push(""); });
+    (d.stops||[]).forEach(s=>{ L.push(`${s.time||""} ${s.name}${s.stay?`(${s.stay})`:""}`); if(s.note) L.push("  "+s.note); if(s.address) L.push("  📍 "+s.address); if(s.next) L.push(`  → ${s.next.mode||""} ${s.next.minutes?s.next.minutes+" 分鐘":""} ${s.next.detail||""}`); }); L.push(""); });
   (P.hotels||[]).forEach(h=>L.push(`🏨 ${h.area}(${h.nights||""}):${h.why||""}`)); if(P.budget) L.push("","💰 "+P.budget); return L.join("\n");
 }
 let map=null;
@@ -438,6 +439,20 @@ function drawMap(stops){
   L.polyline(ll,{color:getComputedStyle(document.documentElement).getPropertyValue("--accent")||"#2f6f62",weight:3,opacity:.7,dashArray:"6 6"}).addTo(map);
   map.fitBounds(ll,{padding:[30,30],maxZoom:15});
 }
+function stopForm(s){
+  const types=["景點","餐廳","咖啡廳","甜點","小吃","購物","住宿","交通","其他"];
+  return `<div class="stop"><div class="tm">✏️</div><div class="bd stack" style="gap:6px">
+    <div class="row" style="gap:8px"><input type="time" id="sfTime" value="${esc(/^\d{1,2}:\d{2}$/.test(s.time||"")?String(s.time).padStart(5,"0"):"")}" style="width:auto">
+      <input type="text" id="sfName" placeholder="地點名稱" value="${esc(s.name||"")}" style="flex:1;min-width:140px"></div>
+    <div class="row" style="gap:8px"><select id="sfType" style="width:auto">${types.map(x=>`<option ${x===(s.type||"景點")?"selected":""}>${x}</option>`).join("")}</select>
+      <input type="text" id="sfStay" placeholder="停留多久,例:1 小時" value="${esc(s.stay||"")}" style="flex:1;min-width:100px">
+      <input type="text" id="sfCost" placeholder="大約花費" value="${esc(s.cost||"")}" style="flex:1;min-width:100px"></div>
+    <input type="text" id="sfAddr" placeholder="地址(可不填,填了地圖會更準)" value="${esc(s.address||"")}">
+    <textarea id="sfNote" placeholder="要做什麼、必點、注意事項" style="min-height:60px">${esc(s.note||"")}</textarea>
+    <input type="text" id="sfNext" placeholder="怎麼去下一站,例:地鐵 2 號線 15 分鐘" value="${esc(s.next?[s.next.mode,s.next.minutes?s.next.minutes+" 分鐘":"",s.next.detail].filter(Boolean).join(" "):"")}">
+    <div class="row"><button class="btn primary small" id="sfSave">儲存這一站</button><button class="btn small" id="sfCancel">取消</button></div>
+  </div></div>`;
+}
 async function saveTrip(){ try{ await api("/api/tz?a=trip&id="+S.trip.id,{method:"PUT",body:{plan:S.trip.plan,name:S.trip.name}}); }catch(e){ toast(e.message); } }
 function renderItin(){
   const t=S.trip;
@@ -449,13 +464,18 @@ function renderItin(){
   const P=t.plan, days=P.days||[]; if(S.day>=days.length) S.day=0;
   const d=days[S.day]||{stops:[]}; const country=t.params?.country||""; const stay=(P.stays||{})[S.day]||null; const route=dayRouteLink(d,country,stay); const busy=["生成中","修改中"].includes(t.status);
   $("#main").innerHTML=`<div class="stack">
-    <div class="row" style="justify-content:space-between"><button class="btn small" id="back">← 回行程列表</button><span class="row"><button class="btn small" id="cpIt">複製成文字</button><button class="btn small danger" id="delIt">刪掉</button></span></div>
+    <div class="row" style="justify-content:space-between"><button class="btn small" id="back">← 回行程列表</button><span class="row"><button class="btn small ${S.editMode?"primary":""}" id="editIt">${S.editMode?"✓ 編輯完成":"✏️ 編輯行程"}</button><button class="btn small" id="cpIt">複製成文字</button><button class="btn small danger" id="delIt">刪掉</button></span></div>
+    ${S.editMode?`<div class="note small">編輯中:每一站都可以改內容、調順序、移到別天或刪掉,也可以自己加一站。改完會自動存。</div>
+      <div class="card stack" style="gap:6px"><label class="f" for="edTitle" style="margin:0">行程名稱</label><input type="text" id="edTitle" value="${esc(P.title||t.name)}">
+      <label class="f" for="edOverview" style="margin:0">整體說明</label><textarea id="edOverview" style="min-height:60px">${esc(P.overview||"")}</textarea>
+      <div class="row"><button class="btn small primary" id="edTitleSave">儲存名稱和說明</button></div></div>`:""}
     <div id="delAsk" hidden class="note row" style="justify-content:space-between">確定刪掉這個行程?<span class="row"><button class="btn small" id="delNo">不要</button><button class="btn small danger" id="delYes">刪掉</button></span></div>
     <div><h2>${esc(P.title||t.name)}</h2>${P.overview?`<p class="muted" style="margin:6px 0 0">${esc(P.overview)}</p>`:""}</div>
     ${busy?`<div class="note">AI 正在修改行程,好了會自動更新…</div>`:""}${t.error&&!busy?`<div class="note st-err">${esc(t.error)}</div>`:""}
     <div class="daytabs" id="dt">${days.map((x,i)=>`<button class="chip ${i===S.day?"on":""}" data-d="${i}">第 ${x.day||i+1} 天${x.date?" "+esc(String(x.date).slice(5)):""}</button>`).join("")}</div>
     <div id="map" class="map"></div>
     <div class="card">
+      ${S.editMode?`<div class="row" style="gap:8px;margin-bottom:6px"><input type="text" id="edArea" placeholder="今天主要在哪一區" value="${esc(d.area||"")}" style="flex:1;min-width:120px"><input type="text" id="edTheme" placeholder="今天的主題" value="${esc(d.theme||"")}" style="flex:1;min-width:120px"><input type="date" id="edDate" value="${esc(d.date||"")}" style="width:auto"><button class="btn small" id="edDaySave">存這天</button></div>`:""}
       <div class="row" style="justify-content:space-between;margin-bottom:4px"><h3>${esc(d.area||"")}${d.theme?" ・ "+esc(d.theme):""}</h3>${route?`<a class="small" href="${route}" target="_blank" rel="noopener">整天路線看 Google 地圖 ↗</a>`:""}</div>
       <div class="staybox">${S.stayEdit?`
         <div class="stack" style="gap:6px"><b class="small">🏨 設定住哪一間</b>
@@ -466,15 +486,16 @@ function renderItin(){
           <div class="row"><button class="btn primary small" id="stSave">儲存</button><button class="btn small" id="stCancel">取消</button>${stay?`<button class="btn small danger" id="stClear">這天不住這間</button>`:""}</div></div>`
       : stay?`<div class="row" style="justify-content:space-between;align-items:flex-start"><div style="min-width:0">🏨 <span class="small muted">第 ${S.day+1} 天晚上住</span><br><b>${esc(stay.name)}</b>${stay.address?`<div class="small">📍 ${esc(stay.address)}</div>`:""}<div class="links">${stayLinks(stay,country)}</div></div><button class="btn small" id="stEdit">改</button></div>`
       : `<button class="btn small" id="stAdd">＋ 設定第 ${S.day+1} 天晚上住哪一間</button>`}</div>
-      ${(d.stops||[]).map((s,i)=>`<div class="stop"><div class="tm">${esc(s.time||"")}<div class="num">${i+1}</div></div><div class="bd">
+      ${(d.stops||[]).map((s,i)=>S.stopEdit===i?stopForm(s):`<div class="stop"><div class="tm">${esc(s.time||"")}<div class="num">${i+1}</div></div><div class="bd">
         <div>${s.saved_id?`<span class="saved" title="你收藏的"></span>`:""}<b>${esc(s.name)}</b> <span class="small muted">${esc([s.type,s.stay,s.cost].filter(Boolean).join(" · "))}</span></div>
-        ${s.note?`<div class="small">${esc(s.note)}</div>`:""}
-        <div class="links">${mapLinks(s.name,s.city,country)}
-          <button class="btn small" data-up="${i}" ${i===0?"disabled":""} aria-label="往前">↑</button><button class="btn small" data-down="${i}" ${i===d.stops.length-1?"disabled":""} aria-label="往後">↓</button>
+        ${s.note?`<div class="small">${esc(s.note)}</div>`:""}${s.address?`<div class="small muted">📍 ${esc(s.address)}</div>`:""}
+        <div class="links">${s.address?`<a href="https://www.google.com/maps/search/?api=1&query=${gq(s.address)}" target="_blank" rel="noopener">Google 地圖</a>`:mapLinks(s.name,s.city,country)}
+          ${S.editMode?`<button class="btn small" data-edit="${i}">編輯</button><button class="btn small" data-up="${i}" ${i===0?"disabled":""} aria-label="往前">↑</button><button class="btn small" data-down="${i}" ${i===d.stops.length-1?"disabled":""} aria-label="往後">↓</button>
           <select class="btn small" data-mv="${i}" style="width:auto;padding:3px 8px" aria-label="移到別天"><option value="">移到…</option>${days.map((x,j)=>j===S.day?"":`<option value="${j}">第 ${x.day||j+1} 天</option>`).join("")}</select>
-          <button class="btn small danger" data-rm="${i}" aria-label="刪掉這站">✕</button></div>
+          <button class="btn small danger" data-rm="${i}" aria-label="刪掉這站">✕</button>`:""}</div>
         ${s.next?`<div class="next">→ ${esc(s.next.mode||"")}${s.next.minutes?` 約 ${esc(s.next.minutes)} 分鐘`:""}${s.next.detail?`:${esc(s.next.detail)}`:""}</div>`:""}
       </div></div>`).join("")||`<p class="muted">這天還沒有安排</p>`}
+      ${S.stopEdit==="new"?stopForm({}):S.editMode?`<div class="row" style="margin-top:10px"><button class="btn small" id="addStop">＋ 自己加一站</button></div>`:""}
       ${(t.places||[]).length?`<div class="row" style="margin-top:10px"><select id="addSaved" style="flex:1;min-width:180px"><option value="">＋ 從收藏加一個地點到這天</option>${t.places.map(x=>`<option value="${esc(x.sid)}">${esc(x.name)}</option>`).join("")}</select></div>`:""}
     </div>
     <div class="card stack"><h3>想改什麼直接說</h3><textarea id="ref" style="min-height:70px" placeholder="例:第二天輕鬆一點、加一間咖啡廳、晚餐想吃火鍋"></textarea>
@@ -493,9 +514,26 @@ function renderItin(){
   drawMap(d.stops||[]);
   $("#back").onclick=()=>{ S.trip=null; renderTrip(); };
   $("#cpIt").onclick=()=>copy(itinText(t));
+  $("#editIt").onclick=()=>{ S.editMode=!S.editMode; S.stopEdit=null; renderItin(); };
+  $("#edTitleSave") && ($("#edTitleSave").onclick=async()=>{ P.title=$("#edTitle").value.trim()||P.title; P.overview=$("#edOverview").value.trim(); t.name=P.title||t.name; renderItin(); await saveTrip(); toast("存好了"); });
+  $("#edDaySave") && ($("#edDaySave").onclick=async()=>{ d.area=$("#edArea").value.trim(); d.theme=$("#edTheme").value.trim(); d.date=$("#edDate").value; renderItin(); await saveTrip(); toast("這天存好了"); });
+  $("#main").querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{ S.stopEdit=+b.dataset.edit; renderItin(); $("#sfName")?.focus(); });
+  $("#addStop") && ($("#addStop").onclick=()=>{ S.stopEdit="new"; renderItin(); $("#sfName")?.focus(); });
+  $("#sfCancel") && ($("#sfCancel").onclick=()=>{ S.stopEdit=null; renderItin(); });
+  $("#sfSave") && ($("#sfSave").onclick=async()=>{
+    const name=$("#sfName").value.trim(); if(!name){ toast("請填地點名稱"); return; }
+    const old=S.stopEdit==="new"?{}:d.stops[S.stopEdit]; const nx=$("#sfNext").value.trim();
+    const stop={...old, time:$("#sfTime").value, name, type:$("#sfType").value, stay:$("#sfStay").value.trim(), cost:$("#sfCost").value.trim(), address:$("#sfAddr").value.trim(), note:$("#sfNote").value.trim(),
+      next: nx ? (old.next && [old.next.mode,old.next.minutes?old.next.minutes+" 分鐘":"",old.next.detail].filter(Boolean).join(" ")===nx ? old.next : {mode:"",minutes:null,detail:nx}) : null};
+    if(old.name && old.name!==name){ delete stop.lat; delete stop.lng; }
+    d.stops ||= [];
+    if(S.stopEdit==="new") d.stops.push(stop); else d.stops[S.stopEdit]=stop;
+    if(stop.time) d.stops.sort((a,b)=>(a.time||"99")<(b.time||"99")?-1:(a.time||"99")>(b.time||"99")?1:0);
+    S.stopEdit=null; renderItin(); await saveTrip(); toast("存好了");
+  });
   $("#delIt").onclick=()=>{ $("#delAsk").hidden=false; }; $("#delNo").onclick=()=>{ $("#delAsk").hidden=true; };
   $("#delYes").onclick=async()=>{ try{ await api("/api/tz?a=trip&id="+t.id,{method:"DELETE"}); S.trip=null; await load(); renderTrip(); toast("刪掉了"); }catch(e){ toast(e.message); } };
-  $("#dt").onclick=e=>{ const b=e.target.closest("[data-d]"); if(b){ S.day=+b.dataset.d; S.stayEdit=null; renderItin(); } };
+  $("#dt").onclick=e=>{ const b=e.target.closest("[data-d]"); if(b){ S.day=+b.dataset.d; S.stayEdit=null; S.stopEdit=null; renderItin(); } };
   const edit=async fn=>{ fn(d.stops); renderItin(); await saveTrip(); };
   $("#main").querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>edit(a=>{ const i=+b.dataset.up; [a[i-1],a[i]]=[a[i],a[i-1]]; }));
   $("#main").querySelectorAll("[data-down]").forEach(b=>b.onclick=()=>edit(a=>{ const i=+b.dataset.down; [a[i+1],a[i]]=[a[i],a[i+1]]; }));
