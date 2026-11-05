@@ -46,10 +46,70 @@ export function normalize(platform, item) {
   };
 }
 
+const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+
+// 抖音:短網址轉成影片編號,再直接讀分享頁的文案(免費),講的話交給 Apify
+async function douyinId(url) {
+  const direct = url.match(/(?:video|note|share\/video|share\/note)\/(\d{8,})/) || url.match(/modal_id=(\d{8,})/);
+  if (direct) return direct[1];
+  let cur = url;
+  for (let i = 0; i < 5; i++) {
+    const r = await fetch(cur, { redirect: "manual", headers: { "User-Agent": MOBILE_UA } });
+    const loc = r.headers.get("location");
+    if (!loc) break;
+    cur = new URL(loc, cur).toString();
+    const m = cur.match(/(?:video|note)\/(\d{8,})/) || cur.match(/modal_id=(\d{8,})/);
+    if (m) return m[1];
+  }
+  return "";
+}
+async function douyinPage(id) {
+  const r = await fetch(`https://www.iesdouyin.com/share/video/${id}/`, { headers: { "User-Agent": MOBILE_UA, Referer: "https://www.douyin.com/" } });
+  const html = await r.text();
+  const m = html.match(/window\._ROUTER_DATA\s*=\s*(\{[\s\S]*?\})\s*<\/script>/);
+  if (!m) return null;
+  const data = JSON.parse(m[1]);
+  const pages = Object.values(data.loaderData || {});
+  for (const pg of pages) {
+    const it = pg?.videoInfoRes?.item_list?.[0];
+    if (it) return {
+      text: it.desc || "", author: it.author?.nickname || "",
+      images: [it.video?.cover?.url_list?.[0], ...(it.images || []).map((x) => x?.url_list?.[0])].filter(Boolean),
+      is_video: !it.images?.length,
+    };
+  }
+  return null;
+}
+async function fetchDouyin(url) {
+  let id = "";
+  try { id = await douyinId(url); } catch {}
+  let page = null;
+  if (id) { try { page = await douyinPage(id); } catch {} }
+  const target = id ? `https://www.douyin.com/video/${id}` : url;
+  let tr = null;
+  if (!page || page.is_video) tr = await runActor("抖音", target);
+  const p = tr?.post || {};
+  const post = { platform: "抖音", author: page?.author || p.author || "", title: p.title || "", text: page?.text || p.text || "",
+    transcript: p.transcript || "", location: p.location || "", images: (page?.images?.length ? page.images : p.images || []).slice(0, 8),
+    is_video: page ? page.is_video : p.is_video };
+  const ok = Boolean(post.text || post.transcript);
+  return { ok, platform: "抖音", post, error: ok ? "" : (tr?.error || "抓不到這篇抖音(可能是私人、已刪除,或抖音擋住了)") };
+}
+
 export async function fetchPost(url) {
   const platform = platformOf(url);
+  if (!ACTORS[platform]) return { ok: false, platform, error: "這個連結不是 IG、TikTok、抖音、小紅書或臉書的貼文" };
+  if (platform === "抖音") return fetchDouyin(url);
+  const first = await runActor(platform, url);
+  if (!first.ok && platform === "小紅書" && !/401|402|403/.test(first.error || "")) {
+    const again = await runActor(platform, url);
+    if (again.ok) return again;
+  }
+  return first;
+}
+
+async function runActor(platform, url) {
   const actor = ACTORS[platform];
-  if (!actor) return { ok: false, platform, error: "這個連結不是 IG、TikTok、抖音、小紅書或臉書的貼文" };
   const token = env("APIFY_TOKEN");
   const api = `https://api.apify.com/v2/acts/${actor.id}/run-sync-get-dataset-items?timeout=50&clean=true`;
   const ctl = new AbortController();
@@ -73,8 +133,9 @@ export async function fetchPost(url) {
   try { items = JSON.parse(body); } catch { return { ok: false, platform, error: "抓取服務回傳的格式看不懂" }; }
   const item = Array.isArray(items) ? items[0] : items;
   if (!item) return { ok: false, platform, actor: actor.id, error: "抓不到這篇(可能是私人帳號、已刪除,或平台擋住了)" };
-  if (item.error || item.errorDescription) return { ok: false, platform, actor: actor.id, error: "抓不到這篇:" + (item.errorDescription || item.error) };
+  const itemErr = item.errorDescription || item.errMsg || (typeof item.error === "string" ? item.error : item.error?.message) || "";
   const post = normalize(platform, item);
+  if (itemErr && !(post.text || post.transcript || post.title)) return { ok: false, platform, actor: actor.id, error: "抓不到這篇:" + itemErr };
   return { ok: Boolean(post.text || post.transcript || post.title || post.images.length), platform, actor: actor.id, post,
     raw_keys: Object.keys(item).slice(0, 60), error: post.text || post.transcript || post.title || post.images.length ? "" : "抓到了,但裡面沒有文字" };
 }
