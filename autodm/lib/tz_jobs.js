@@ -6,7 +6,7 @@ import { analyze, planTrip, refineTrip } from "./tz_ai.js";
 import { baseUrl } from "./env.js";
 
 export function kick(request, type, id) {
-  const url = `${baseUrl(request)}/api/tz/run`;
+  const url = `${baseUrl(request)}/api/tz?a=run`;
   const p = fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "x-tz-internal": process.env.CRON_SECRET || "" },
     body: JSON.stringify({ type, id }) }).then((r) => r.text()).catch((e) => console.error("kick failed", e));
   waitUntil(p);

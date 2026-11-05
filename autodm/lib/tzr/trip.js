@@ -1,6 +1,6 @@
-import { json, readJson, isAdmin, unauthorized } from "../../lib/auth.js";
-import { tq } from "../../lib/tz_db.js";
-import { kick } from "../../lib/tz_jobs.js";
+import { json, readJson, isAdmin, unauthorized } from "../auth.js";
+import { tq } from "../tz_db.js";
+import { kick } from "../tz_jobs.js";
 
 const idOf = (request) => Number(new URL(request.url).searchParams.get("id"));
 

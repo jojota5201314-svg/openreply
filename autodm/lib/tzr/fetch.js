@@ -1,5 +1,5 @@
-import { json, readJson, isAdmin, unauthorized } from "../../lib/auth.js";
-import { fetchPost, findUrl } from "../../lib/tz_fetch.js";
+import { json, readJson, isAdmin, unauthorized } from "../auth.js";
+import { fetchPost, findUrl } from "../tz_fetch.js";
 
 export async function POST(request) {
   if (!isAdmin(request)) return unauthorized();

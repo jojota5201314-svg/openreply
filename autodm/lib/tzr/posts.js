@@ -1,8 +1,8 @@
-import { json, readJson, isAdmin, unauthorized } from "../../lib/auth.js";
-import { tq, slimPost, shareKey } from "../../lib/tz_db.js";
-import { findUrl, platformOf } from "../../lib/tz_fetch.js";
-import { safeEqual } from "../../lib/crypto.js";
-import { kick } from "../../lib/tz_jobs.js";
+import { json, readJson, isAdmin, unauthorized } from "../auth.js";
+import { tq, slimPost, shareKey } from "../tz_db.js";
+import { findUrl, platformOf } from "../tz_fetch.js";
+import { safeEqual } from "../crypto.js";
+import { kick } from "../tz_jobs.js";
 
 export async function GET(request) {
   if (!isAdmin(request)) return unauthorized();

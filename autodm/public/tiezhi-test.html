@@ -31,7 +31,7 @@ $("#lg").onclick=async()=>{ const r=await fetch("/api/admin/login",{method:"POST
 $("#go").onclick=async()=>{
   const b=$("#go"); b.disabled=true; $("#st").textContent="抓取中,大約 10~50 秒…"; const t0=Date.now();
   try{
-    const r=await fetch("/api/tz/fetch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:$("#url").value})});
+    const r=await fetch("/api/tz?a=fetch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:$("#url").value})});
     const d=await r.json().catch(()=>({ok:false,error:"伺服器沒有回應(可能超時)"}));
     const p=d.post||{};
     $("#out").insertAdjacentHTML("afterbegin",`<div class="c"><b>${d.ok?"✅ 抓到了":"❌ 抓不到"}</b> <span class="m">${esc(d.platform||"")} · ${Math.round((Date.now()-t0)/1000)} 秒</span>

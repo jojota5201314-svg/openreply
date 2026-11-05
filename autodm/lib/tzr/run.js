@@ -1,6 +1,6 @@
-import { json, readJson, isAdmin } from "../../lib/auth.js";
-import { safeEqual } from "../../lib/crypto.js";
-import { runPost, runTrip, kick } from "../../lib/tz_jobs.js";
+import { json, readJson, isAdmin } from "../auth.js";
+import { safeEqual } from "../crypto.js";
+import { runPost, runTrip, kick } from "../tz_jobs.js";
 
 export async function POST(request) {
   const internal = request.headers.get("x-tz-internal") || "";

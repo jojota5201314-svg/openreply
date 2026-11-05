@@ -166,7 +166,7 @@ function showLogin(){
 
 // ---------- 資料 ----------
 async function load(){
-  const [p,t]=await Promise.all([api("/api/tz/posts"), api("/api/tz/trips")]);
+  const [p,t]=await Promise.all([api("/api/tz?a=posts"), api("/api/tz?a=trips")]);
   S.posts=p.posts; S.trips=t.trips; S.loaded=true;
 }
 let pollT=null;
@@ -209,11 +209,11 @@ function renderAdd(){
   $("#go").onclick=async()=>{
     const text=ta.value.trim(); if(!text){ toast("先貼上連結"); return; }
     const b=$("#go"); b.disabled=true;
-    try{ await api("/api/tz/posts",{method:"POST",body:{text}}); S.draft=""; S.typing=false; toast("收到了,整理中"); await load(); renderAdd(); schedulePoll(); }
+    try{ await api("/api/tz?a=posts",{method:"POST",body:{text}}); S.draft=""; S.typing=false; toast("收到了,整理中"); await load(); renderAdd(); schedulePoll(); }
     catch(e){ toast(e.message); b.disabled=false; }
   };
   bindCards();
-  $("#main").querySelectorAll("[data-retry]").forEach(b=>b.onclick=async()=>{ await api("/api/tz/post?id="+b.dataset.retry,{method:"POST",body:{full:true}}).catch(e=>toast(e.message)); await load(); renderAdd(); schedulePoll(); });
+  $("#main").querySelectorAll("[data-retry]").forEach(b=>b.onclick=async()=>{ await api("/api/tz?a=post&id="+b.dataset.retry,{method:"POST",body:{full:true}}).catch(e=>toast(e.message)); await load(); renderAdd(); schedulePoll(); });
 }
 function bindCards(){ $("#main").querySelectorAll("[data-post],[data-open]").forEach(b=>b.onclick=()=>openPost(+(b.dataset.post||b.dataset.open))); }
 
@@ -263,7 +263,7 @@ function recipeHtml(r,k){
     ${(r.tips||[]).length?`<div class="note">💡 ${r.tips.map(esc).join("<br>💡 ")}</div>`:""}</div>`;
 }
 async function openPost(id){
-  let p; try{ p=await api("/api/tz/post?id="+id); }catch(e){ return toast(e.message); }
+  let p; try{ p=await api("/api/tz?a=post&id="+id); }catch(e){ return toast(e.message); }
   const d=p.data||{}, raw=p.raw||{}; let k=1;
   const draw=()=>{
     openModal(`<div class="sheet-h"><div><h2>${esc(p.title||"(整理中)")}</h2><div class="small muted">${esc([p.platform,raw.author,new Date(p.created).toLocaleDateString("zh-TW")].filter(Boolean).join(" · "))}</div></div><button class="x" data-close aria-label="關閉">✕</button></div>
@@ -291,11 +291,11 @@ async function openPost(id){
     </div>`);
     document.querySelectorAll("[data-sv]").forEach(b=>b.onclick=()=>{ const base=d.recipe.servings||1; const nv=Math.max(1,Math.round(base*k)+Number(b.dataset.sv)); k=nv/base; draw(); });
     $("#shop") && ($("#shop").onclick=()=>copy(`${d.recipe.dish||"食譜"}(${Math.round((d.recipe.servings||1)*k)} 人份)購物清單\n`+(d.recipe.ingredients||[]).map(i=>`□ ${i.name} ${fmtQty(i.qty,k)}${i.unit||""}`.trim()).join("\n")));
-    $("#eSave").onclick=async()=>{ try{ await api("/api/tz/post?id="+p.id,{method:"PATCH",body:{category:$("#eCat").value,subcategory:$("#eSub").value.trim(),country:$("#eCountry").value.trim(),region:$("#eRegion").value.trim()}}); toast("存好了"); closeModal(); await load(); render(); }catch(e){ toast(e.message); } };
-    const redo=async full=>{ try{ await api("/api/tz/post?id="+p.id,{method:"POST",body:{full,user_text:$("#eUser").value}}); toast("重新整理中"); closeModal(); await load(); render(); schedulePoll(); }catch(e){ toast(e.message); } };
+    $("#eSave").onclick=async()=>{ try{ await api("/api/tz?a=post&id="+p.id,{method:"PATCH",body:{category:$("#eCat").value,subcategory:$("#eSub").value.trim(),country:$("#eCountry").value.trim(),region:$("#eRegion").value.trim()}}); toast("存好了"); closeModal(); await load(); render(); }catch(e){ toast(e.message); } };
+    const redo=async full=>{ try{ await api("/api/tz?a=post&id="+p.id,{method:"POST",body:{full,user_text:$("#eUser").value}}); toast("重新整理中"); closeModal(); await load(); render(); schedulePoll(); }catch(e){ toast(e.message); } };
     $("#redo").onclick=()=>redo(false); $("#refetch").onclick=()=>redo(true);
     $("#del").onclick=()=>{ $("#delAsk").hidden=false; }; $("#delNo").onclick=()=>{ $("#delAsk").hidden=true; };
-    $("#delYes").onclick=async()=>{ try{ await api("/api/tz/post?id="+p.id,{method:"DELETE"}); closeModal(); toast("刪掉了"); await load(); render(); }catch(e){ toast(e.message); } };
+    $("#delYes").onclick=async()=>{ try{ await api("/api/tz?a=post&id="+p.id,{method:"DELETE"}); closeModal(); toast("刪掉了"); await load(); render(); }catch(e){ toast(e.message); } };
   };
   draw();
 }
@@ -318,7 +318,7 @@ function savedPlaces(country){
     out.push({sid:p.id+":"+i, name:pl.name, type:pl.type, city:pl.city||p.region, address:pl.address, note:pl.note, lat:pl.lat, lng:pl.lng, country:c, region:p.region||pl.city||"", from:p.title});
   })); return out;
 }
-async function openTrip(id){ try{ const t=await api("/api/tz/trip?id="+id); S.trip=t; if(S.day>=(t.plan?.days||[]).length) S.day=0; renderTrip(); }catch(e){ toast(e.message); } }
+async function openTrip(id){ try{ const t=await api("/api/tz?a=trip&id="+id); S.trip=t; if(S.day>=(t.plan?.days||[]).length) S.day=0; renderTrip(); }catch(e){ toast(e.message); } }
 function renderTrip(){
   if(S.trip) return renderItin();
   const countries=counts(savedPlaces("").map(x=>({c:x.country})),"c");
@@ -362,7 +362,7 @@ function renderTrip(){
     if(!picked.length && !T.dest && !T.country){ toast("先勾地點,或寫想去哪裡"); return; }
     const params={country:T.country||T.dest, region:T.regions.join("、"), days:T.days, start_date:T.start, pace:T.pace, transport:T.transport, stay:T.stay, budget:T.budget, people:T.people, interests:T.interests, auto_add:T.auto, extra:T.extra};
     $("#gen").disabled=true; $("#genSt").textContent="排行程中,大約 30 秒~1 分鐘…";
-    try{ const r=await api("/api/tz/trips",{method:"POST",body:{params,places:picked}}); await load(); schedulePoll(); S.day=0; await openTrip(r.id); }
+    try{ const r=await api("/api/tz?a=trips",{method:"POST",body:{params,places:picked}}); await load(); schedulePoll(); S.day=0; await openTrip(r.id); }
     catch(e){ $("#gen").disabled=false; $("#genSt").textContent=e.message; }
   };
 }
@@ -389,7 +389,7 @@ function drawMap(stops){
   L.polyline(ll,{color:getComputedStyle(document.documentElement).getPropertyValue("--accent")||"#2f6f62",weight:3,opacity:.7,dashArray:"6 6"}).addTo(map);
   map.fitBounds(ll,{padding:[30,30],maxZoom:15});
 }
-async function saveTrip(){ try{ await api("/api/tz/trip?id="+S.trip.id,{method:"PUT",body:{plan:S.trip.plan,name:S.trip.name}}); }catch(e){ toast(e.message); } }
+async function saveTrip(){ try{ await api("/api/tz?a=trip&id="+S.trip.id,{method:"PUT",body:{plan:S.trip.plan,name:S.trip.name}}); }catch(e){ toast(e.message); } }
 function renderItin(){
   const t=S.trip;
   if(!t.plan){
@@ -435,7 +435,7 @@ function renderItin(){
   $("#back").onclick=()=>{ S.trip=null; renderTrip(); };
   $("#cpIt").onclick=()=>copy(itinText(t));
   $("#delIt").onclick=()=>{ $("#delAsk").hidden=false; }; $("#delNo").onclick=()=>{ $("#delAsk").hidden=true; };
-  $("#delYes").onclick=async()=>{ try{ await api("/api/tz/trip?id="+t.id,{method:"DELETE"}); S.trip=null; await load(); renderTrip(); toast("刪掉了"); }catch(e){ toast(e.message); } };
+  $("#delYes").onclick=async()=>{ try{ await api("/api/tz?a=trip&id="+t.id,{method:"DELETE"}); S.trip=null; await load(); renderTrip(); toast("刪掉了"); }catch(e){ toast(e.message); } };
   $("#dt").onclick=e=>{ const b=e.target.closest("[data-d]"); if(b){ S.day=+b.dataset.d; renderItin(); } };
   const edit=async fn=>{ fn(d.stops); renderItin(); await saveTrip(); };
   $("#main").querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>edit(a=>{ const i=+b.dataset.up; [a[i-1],a[i]]=[a[i],a[i-1]]; }));
@@ -444,13 +444,13 @@ function renderItin(){
   $("#main").querySelectorAll("[data-mv]").forEach(s=>s.onchange=()=>{ if(s.value==="") return; const j=+s.value; edit(a=>{ const [x]=a.splice(+s.dataset.mv,1); (days[j].stops ||= []).push(x); }); });
   $("#addSaved") && ($("#addSaved").onchange=e=>{ const x=t.places.find(p=>p.sid===e.target.value); if(x) edit(a=>a.push({time:"",name:x.name,city:x.city,type:x.type,saved_id:x.sid,lat:x.lat,lng:x.lng,note:x.note||"",next:null})); });
   $("#refGo").onclick=async()=>{ const ins=$("#ref").value.trim(); if(!ins){ toast("先寫想怎麼改"); return; }
-    try{ await api("/api/tz/trip?id="+t.id,{method:"POST",body:{instruction:ins}}); t.status="修改中"; await load(); renderItin(); schedulePoll(); }catch(e){ toast(e.message); } };
+    try{ await api("/api/tz?a=trip&id="+t.id,{method:"POST",body:{instruction:ins}}); t.status="修改中"; await load(); renderItin(); schedulePoll(); }catch(e){ toast(e.message); } };
 }
 
 // ---------- 設定 ----------
 async function renderSet(){
   $("#main").innerHTML=`<div class="stack"><h2>設定</h2><div class="card empty">讀取中…</div></div>`;
-  let s; try{ s=await api("/api/tz/share"); }catch(e){ return; }
+  let s; try{ s=await api("/api/tz?a=share"); }catch(e){ return; }
   $("#main").innerHTML=`<div class="stack"><h2>設定</h2>
     <div class="card stack"><h3>iPhone:在 IG 按「分享」就存進來</h3>
       <p class="small muted" style="margin:0">做一次就好。做好之後,在 IG、TikTok、抖音、小紅書、臉書按分享 → 「存到整理小幫手」,連結就會自己送進來整理。</p>
@@ -476,7 +476,7 @@ async function renderSet(){
     <div class="row"><button class="btn small" id="logout">登出</button></div>
   </div>`;
   $("#cpUrl").onclick=()=>copy(s.url);
-  $("#rot").onclick=async()=>{ const r=await api("/api/tz/share",{method:"POST",body:{rotate:true}}).catch(e=>toast(e.message)); if(r){ s.url=r.url; toast("換好了,記得改捷徑裡的網址"); } };
+  $("#rot").onclick=async()=>{ const r=await api("/api/tz?a=share",{method:"POST",body:{rotate:true}}).catch(e=>toast(e.message)); if(r){ s.url=r.url; toast("換好了,記得改捷徑裡的網址"); } };
   $("#logout").onclick=async()=>{ await fetch("/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({logout:true})}); showLogin(); };
 }
 boot();
