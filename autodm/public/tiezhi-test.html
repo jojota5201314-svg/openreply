@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>貼文抓取測試</title>
+<style>
+:root{--bg:#f3f6f4;--paper:#fff;--ink:#1f2b2a;--muted:#5f6f6c;--line:#d8e1de;--accent:#2f6f62;--bad:#b4443a}
+@media (prefers-color-scheme:dark){:root{--bg:#151b1a;--paper:#1d2524;--ink:#e7eeec;--muted:#9aaba7;--line:#2f3a38;--accent:#7cc4b2;--bad:#e57b70}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+.w{max-width:680px;margin:0 auto;padding:20px 16px 60px}h1{font-size:22px;margin:0 0 4px}.m{color:var(--muted);font-size:14px}
+.c{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:14px}
+input,textarea{width:100%;font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+textarea{min-height:90px}button{font:inherit;border:0;border-radius:999px;padding:10px 20px;background:var(--accent);color:var(--paper);font-weight:700;margin-top:10px}
+button:disabled{opacity:.5}.bad{color:var(--bad)}pre{white-space:pre-wrap;word-break:break-word;font:inherit;margin:6px 0 0}
+.imgs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.imgs img{width:90px;height:90px;object-fit:cover;border-radius:8px}
+b.k{display:block;margin-top:10px;font-size:13px;color:var(--muted)}
+</style></head><body><div class="w">
+<h1>貼文抓取測試</h1><div class="m">貼一個 IG、TikTok、抖音、小紅書或臉書的連結,看抓不抓得到內容。</div>
+<div class="c" id="login" hidden><b>先登入</b><div class="m">密碼跟自動私訊後台一樣</div>
+  <input type="password" id="pw" placeholder="密碼" style="margin-top:8px"><button id="lg">登入</button><div id="lgMsg" class="bad"></div></div>
+<div class="c" id="main" hidden>
+  <textarea id="url" placeholder="把分享的連結貼在這裡(抖音、小紅書的分享文字整段貼上也可以)"></textarea>
+  <button id="go">抓抓看</button> <span class="m" id="st"></span>
+</div>
+<div id="out"></div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+async function check(){ const r=await fetch("/api/admin/login").then(r=>r.json()).catch(()=>({})); $("#login").hidden=!!r.loggedIn; $("#main").hidden=!r.loggedIn; }
+$("#lg").onclick=async()=>{ const r=await fetch("/api/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:$("#pw").value})});
+  if(r.ok) check(); else $("#lgMsg").textContent="密碼不對"; };
+$("#go").onclick=async()=>{
+  const b=$("#go"); b.disabled=true; $("#st").textContent="抓取中,大約 10~50 秒…"; const t0=Date.now();
+  try{
+    const r=await fetch("/api/tz/fetch",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:$("#url").value})});
+    const d=await r.json().catch(()=>({ok:false,error:"伺服器沒有回應(可能超時)"}));
+    const p=d.post||{};
+    $("#out").insertAdjacentHTML("afterbegin",`<div class="c"><b>${d.ok?"✅ 抓到了":"❌ 抓不到"}</b> <span class="m">${esc(d.platform||"")} · ${Math.round((Date.now()-t0)/1000)} 秒</span>
+      ${d.error?`<div class="bad">${esc(d.error)}</div>`:""}
+      ${p.author?`<b class="k">作者</b>${esc(p.author)}`:""}${p.title?`<b class="k">標題</b>${esc(p.title)}`:""}
+      ${p.text?`<b class="k">文案</b><pre>${esc(p.text)}</pre>`:""}${p.transcript?`<b class="k">影片講的話</b><pre>${esc(p.transcript)}</pre>`:""}
+      ${p.location?`<b class="k">地點</b>${esc(p.location)}`:""}
+      ${(p.images||[]).length?`<div class="imgs">${p.images.map(u=>`<img src="${esc(u)}" referrerpolicy="no-referrer" alt="">`).join("")}</div>`:""}
+      <div class="m" style="margin-top:8px;font-size:12px">${esc(d.url||"")}</div></div>`);
+  }catch(e){ $("#out").insertAdjacentHTML("afterbegin",`<div class="c bad">出錯了:${esc(e.message)}</div>`); }
+  b.disabled=false; $("#st").textContent="";
+};
+check();
+</script></body></html>

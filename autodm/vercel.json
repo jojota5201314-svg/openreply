@@ -1,4 +1,4 @@
 {
   "crons": [{ "path": "/api/cron/refresh", "schedule": "17 19 * * *" }],
-  "functions": { "api/**/*.js": { "maxDuration": 20 } }
+  "functions": { "api/**/*.js": { "maxDuration": 60 } }
 }
