@@ -144,9 +144,9 @@ const SCHEMA_OUTLINE = `只輸出這個格式的 JSON(先排大綱,不用排每�
 const SCHEMA_DAY = `只輸出這個格式的 JSON(只排這一天):
 {"stops":[{"time":"09:00","name":"地點名稱","city":"城市","type":"景點|餐廳|咖啡廳|甜點|小吃|購物|住宿|其他","saved_id":"收藏地點的 saved_id 或 null","lat":數字,"lng":數字,"stay":"建議停留","note":"要做什麼、必點(一兩句)","cost":"大約花費",
  "next":{"mode":"步行|地鐵|公車|計程車|開車|火車|高鐵|渡輪","minutes":數字,"detail":"怎麼去下一站"}}]}
-最後一站的 next 填 null。要排早餐/午餐/晚餐。`;
+最後一站的 next 填 null。要排早餐/午餐/晚餐。這天大約 6~10 站,每個欄位都簡短。`;
 export async function planOutline(params, places) {
-  return await claude(SYS_TRIP, tripRequest(params, places) + "\n\n" + SCHEMA_OUTLINE, { maxTokens: 8000, timeoutMs: 270000, asJson: true });
+  return await claude(SYS_TRIP, tripRequest(params, places) + "\n\n" + SCHEMA_OUTLINE, { maxTokens: 16000, timeoutMs: 270000, asJson: true });
 }
 export async function planDay(params, places, outline, i) {
   const d = outline.days[i] || {};
@@ -159,6 +159,6 @@ export async function planDay(params, places, outline, i) {
     `這天一定要去的收藏地點:\n${mine.map((x) => JSON.stringify({ saved_id: x.sid, name: x.name, type: x.type, city: x.city, address: x.address, note: x.note })).join("\n") || "(沒有)"}`,
     `可以參考的點子:${(d.ideas || []).join("、") || "(自由安排)"}`,
     params.auto_add !== false ? "可以補推薦的地點,note 開頭寫「推薦:」" : "不要加收藏以外的景點(吃飯可以推薦)"].filter(Boolean).join("\n");
-  const out = await claude(SYS_TRIP, ctx + "\n\n" + SCHEMA_DAY, { maxTokens: 6000, timeoutMs: 270000, asJson: true });
+  const out = await claude(SYS_TRIP, ctx + "\n\n" + SCHEMA_DAY, { maxTokens: 16000, timeoutMs: 270000, asJson: true });
   return Array.isArray(out.stops) ? out.stops : [];
 }
