@@ -104,10 +104,45 @@ async function fetchDouyin(url) {
     error: ok ? "" : (trErr || "抓不到這篇抖音的文案(可能是私人、已刪除,或抖音擋住了)") };
 }
 
+// 臉書:用臉書自己的預覽機器人身分讀網頁的分享資訊(免費),讀不到再交給 Apify
+const decodeHtml = (t) => (t || "").replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+  .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d)).replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'")
+  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+function meta(html, prop) {
+  const re = new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]*content=["']([^"']*)["']|<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${prop}["']`, "i");
+  const m = html.match(re);
+  return m ? decodeHtml(m[1] || m[2] || "") : "";
+}
+async function fetchFacebook(url) {
+  const dbg = [];
+  let finalUrl = url, page = null;
+  try {
+    const r = await fetch(url, { redirect: "follow", headers: { "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)", "Accept-Language": "zh-TW,zh;q=0.9" } });
+    finalUrl = r.url || url;
+    const html = await r.text();
+    dbg.push(`og:${r.status}:${html.length}`);
+    const desc = meta(html, "og:description") || meta(html, "description");
+    const title = meta(html, "og:title");
+    const img = meta(html, "og:image");
+    if (desc || title) page = { text: desc, title: title, images: img ? [img] : [] };
+  } catch (e) { dbg.push("og_err:" + e.message); }
+  if (page?.text && page.text.length > 20) {
+    const by = (page.title.match(/^(.+?)\s*[|｜-]/) || [])[1] || "";
+    return { ok: true, platform: "臉書", debug: dbg.join(" | "),
+      post: { platform: "臉書", author: by, title: page.title, text: page.text, transcript: "", location: "", images: page.images, is_video: /reel|video|watch/.test(finalUrl) } };
+  }
+  const r2 = await runActor("臉書", finalUrl);
+  if (r2.ok) return r2;
+  if (page) return { ok: true, platform: "臉書", debug: dbg.join(" | "),
+    post: { platform: "臉書", author: "", title: page.title, text: page.text || page.title, transcript: "", location: "", images: page.images, is_video: true } };
+  return { ...r2, debug: dbg.join(" | ") };
+}
+
 export async function fetchPost(url) {
   const platform = platformOf(url);
   if (!ACTORS[platform]) return { ok: false, platform, error: "這個連結不是 IG、TikTok、抖音、小紅書或臉書的貼文" };
   if (platform === "抖音") return fetchDouyin(url);
+  if (platform === "臉書") return fetchFacebook(url);
   const first = await runActor(platform, url);
   if (!first.ok && platform === "小紅書" && !/401|402|403/.test(first.error || "")) {
     const again = await runActor(platform, url);
