@@ -67,7 +67,8 @@ export async function runTrip(id) {
     }
     if (t.status === "排細節") {
       const plan = t.plan;
-      const i = Number(t.pending || 0);
+      let i = t.pending !== null && t.pending !== "" ? Number(t.pending) : (plan.days || []).findIndex((d) => !(d.stops || []).length);
+      if (i < 0 || !plan.days?.[i]) { await tq("UPDATE tz_trips SET status = '完成', pending = '' WHERE id = $1", [id]); await release(); return { done: true }; }
       let stops = [];
       try { stops = await planDay(t.params || {}, t.places || [], plan, i); }
       catch (e) { stops = await planDay(t.params || {}, t.places || [], plan, i); } // 失敗再試一次
