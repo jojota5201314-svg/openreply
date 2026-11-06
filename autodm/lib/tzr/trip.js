@@ -24,10 +24,20 @@ export async function DELETE(request) {
 // 請 AI 修改
 export async function POST(request) {
   if (!isAdmin(request)) return unauthorized();
-  const { instruction } = await readJson(request);
+  const { instruction, resume } = await readJson(request);
   const id = idOf(request);
+  if (resume) { // 接著排還沒排好的那幾天
+    const [t] = await tq("SELECT plan, status FROM tz_trips WHERE id = $1", [id]);
+    if (!t) return json({ error: "找不到" }, 404);
+    if (!t.plan) { await tq("UPDATE tz_trips SET status = '生成中', error = '', step_at = NULL WHERE id = $1", [id]); kick(request, "trip", id); return json({ ok: true }); }
+    const i = (t.plan.days || []).findIndex((d) => !(d.stops || []).length);
+    if (i < 0) return json({ ok: true, nothing: true });
+    await tq("UPDATE tz_trips SET status = '排細節', pending = $2, error = '', step_at = NULL WHERE id = $1", [id, String(i)]);
+    kick(request, "trip", id);
+    return json({ ok: true });
+  }
   if (!instruction) return json({ error: "請寫想怎麼改" }, 400);
-  await tq("UPDATE tz_trips SET status = '修改中', pending = $2, error = '' WHERE id = $1", [id, String(instruction).slice(0, 1000)]);
+  await tq("UPDATE tz_trips SET status = '修改中', pending = $2, error = '', step_at = NULL WHERE id = $1", [id, String(instruction).slice(0, 1000)]);
   kick(request, "trip", id);
   return json({ ok: true });
 }

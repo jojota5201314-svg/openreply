@@ -172,12 +172,34 @@ async function load(){
   const [p,t]=await Promise.all([api("/api/tz?a=posts"), api("/api/tz?a=trips")]);
   S.posts=p.posts.map(x=>({...x, country:normCountry(x.country), region:normRegion(x.region)})); S.trips=t.trips; S.loaded=true;
 }
+// 使用者正在打字或選東西時,不要重畫畫面(不然剛打的字會不見)
+function userBusy(){ const a=document.activeElement; return S.typing || (a && a.closest && a.closest("#main,#modalRoot") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) || S.stopEdit!=null || S.stayEdit || S.tripEdit; }
+const nudged={};
+async function nudgeStuck(){ // 行程卡住超過 2 分半沒動,就叫它接著排
+  for(const t of S.trips){
+    if(!["生成中","修改中","排細節"].includes(t.status)) continue;
+    const idle=t.idle==null?999:Number(t.idle);
+    if(idle<150 || (nudged[t.id] && Date.now()-nudged[t.id]<120000)) continue;
+    nudged[t.id]=Date.now();
+    fetch("/api/tz?a=run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"trip",id:t.id})}).catch(()=>{});
+  }
+}
 let pollT=null;
 function schedulePoll(){
   clearTimeout(pollT);
   const busy=S.posts.some(p=>BUSY.includes(p.status)) || S.trips.some(t=>["生成中","修改中","排細節"].includes(t.status));
   if(!busy) return;
-  pollT=setTimeout(async()=>{ try{ await load(); if(S.tab==="trip" && S.trip){ const t=S.trips.find(x=>x.id===S.trip.id); if(t && (t.status!==S.trip.status || t.status==="排細節") && S.stopEdit==null && !S.stayEdit) await openTrip(S.trip.id); } else if(!S.typing) render(); }catch{} schedulePoll(); }, 4000);
+  pollT=setTimeout(async()=>{
+    try{
+      await load(); nudgeStuck();
+      if(!userBusy()){
+        if(S.tab==="trip" && S.trip){ const t=S.trips.find(x=>x.id===S.trip.id); if(t && (t.status!==S.trip.status || t.status==="排細節")) await openTrip(S.trip.id); }
+        else if(S.tab==="trip"){ /* 行程設定表單:不自動重畫,免得打的字不見 */ }
+        else render();
+      }
+    }catch{}
+    schedulePoll();
+  }, 4000);
 }
 async function boot(){
   const me=await fetch("/api/admin/login").then(r=>r.json()).catch(()=>({}));
@@ -395,6 +417,9 @@ function renderTrip(){
       <div class="row"><button class="btn primary" id="gen">✨ 一鍵生成行程</button><span class="small muted" id="genSt"></span></div>
     </div></div>`;
   const save=()=>{ T.days=Math.max(1,Math.min(10,+$("#tDays").value||3)); T.start=$("#tStart").value; T.people=$("#tPeople").value; T.extra=$("#tExtra").value; T.auto=$("#tAuto").checked; if($("#tDest")) T.dest=$("#tDest").value; };
+  ["tDays","tStart","tPeople","tExtra","tDest"].forEach(id=>{ const el=$("#"+id); if(el) el.addEventListener("input",save); });
+  $("#tAuto").addEventListener("change",save);
+  const ns={nsName:"name",nsAddr:"address"}; Object.keys(ns).forEach(id=>{ const el=$("#"+id); if(el){ el.value=(T.nsDraft||{})[ns[id]]||""; el.addEventListener("input",()=>{ (T.nsDraft ||= {})[ns[id]]=el.value; }); } });
   const one=(id,key)=>{ const el=$("#"+id); if(el) el.onclick=e=>{ const b=e.target.closest("[data-v]"); if(b){ save(); T[key]=b.dataset.v; renderTrip(); } }; };
   one("sPace","pace"); one("sTr","transport"); one("sStay","stay"); one("sBud","budget");
   $("#tc") && ($("#tc").onclick=e=>{ const b=e.target.closest("[data-v]"); if(b){ save(); T.country=b.dataset.v; T.regions=[]; renderTrip(); } });
@@ -402,7 +427,7 @@ function renderTrip(){
   $("#sInt").onclick=e=>{ const b=e.target.closest("[data-v]"); if(b){ save(); const v=b.dataset.v; T.interests=T.interests.includes(v)?T.interests.filter(x=>x!==v):[...T.interests,v]; renderTrip(); } };
   $("#main").querySelectorAll("[data-sid]").forEach(c=>c.onchange=()=>{ T.picked[c.dataset.sid]=c.checked; });
   $("#nsAdd").onclick=()=>{ save(); const name=$("#nsName").value.trim(), address=$("#nsAddr").value.trim(); if(!name&&!address){ toast("至少填飯店名稱或地址"); return; }
-    let a=+$("#nsFrom").value, b=+$("#nsTo").value; if(b<a) [a,b]=[b,a]; T.stays.push({name:name||address,address,from:a,to:b}); renderTrip(); toast("加好了"); };
+    let a=+$("#nsFrom").value, b=+$("#nsTo").value; if(b<a) [a,b]=[b,a]; T.stays.push({name:name||address,address,from:a,to:b}); T.nsDraft={}; renderTrip(); toast("加好了"); };
   $("#main").querySelectorAll("[data-stay-rm]").forEach(b=>b.onclick=()=>{ save(); T.stays.splice(+b.dataset.stayRm,1); renderTrip(); });
   $("#pickAll") && ($("#pickAll").onclick=()=>{ save(); places.forEach(x=>T.picked[x.sid]=true); renderTrip(); });
   $("#main").querySelectorAll("[data-trip]").forEach(b=>b.onclick=()=>{ S.day=0; S.editMode=false; S.stopEdit=null; openTrip(+b.dataset.trip); });
@@ -473,7 +498,8 @@ function renderItin(){
   const t=S.trip;
   if(!t.plan){
     $("#main").innerHTML=`<div class="stack"><button class="btn small" id="back" style="align-self:flex-start">← 回行程列表</button>
-      <div class="card empty"><b>${t.status==="失敗"?"排行程失敗":"排行程中…"}</b>${t.status==="失敗"?esc(t.error||"")+"<br><br>回上一頁再按一次「一鍵生成行程」,或把天數改少一點。":"大約 30 秒~1 分鐘,好了會自動出現。"}</div></div>`;
+      <div class="card empty"><b>${t.status==="失敗"?"排行程失敗":"排行程中…"}</b>${t.status==="失敗"?esc(t.error||"")+`<br><br><button class="btn primary small" id="resumeIt">▶ 再排一次</button>`:"先排大綱,再一天一天排,好了會自動出現。可以先去做別的事。"}</div></div>`;
+    $("#resumeIt") && ($("#resumeIt").onclick=async()=>{ try{ await api("/api/tz?a=trip&id="+t.id,{method:"POST",body:{resume:true}}); await load(); await openTrip(t.id); schedulePoll(); }catch(e){ toast(e.message); } });
     $("#back").onclick=()=>{ S.trip=null; renderTrip(); }; return;
   }
   const P=t.plan, days=P.days||[]; if(S.day>=days.length) S.day=0;
@@ -487,6 +513,7 @@ function renderItin(){
     <div id="delAsk" hidden class="note row" style="justify-content:space-between">確定刪掉這個行程?<span class="row"><button class="btn small" id="delNo">不要</button><button class="btn small danger" id="delYes">刪掉</button></span></div>
     <div><h2>${esc(P.title||t.name)}</h2>${P.overview?`<p class="muted" style="margin:6px 0 0">${esc(P.overview)}</p>`:""}</div>
     ${busy?`<div class="note">${t.status==="排細節"?`AI 正在一天一天排,目前排到第 ${Number(t.pending||0)+1} 天(共 ${days.length} 天),好了會自動更新…`:"AI 正在修改行程,好了會自動更新…"}</div>`:""}${t.error&&!busy?`<div class="note st-err">${esc(t.error)}</div>`:""}
+    ${!busy && days.some(x=>!(x.stops||[]).length)?`<div class="row"><button class="btn primary small" id="resumeIt">▶ 接著排還沒排好的天數</button></div>`:""}
     <div class="daytabs" id="dt">${days.map((x,i)=>`<button class="chip ${i===S.day?"on":""}" data-d="${i}">第 ${x.day||i+1} 天${x.date?" "+esc(String(x.date).slice(5)):""}</button>`).join("")}</div>
     <div id="map" class="map"></div>
     <div class="card">
@@ -513,7 +540,7 @@ function renderItin(){
       ${S.stopEdit==="new"?stopForm({}):S.editMode?`<div class="row" style="margin-top:10px"><button class="btn small" id="addStop">＋ 自己加一站</button></div>`:""}
       ${(t.places||[]).length?`<div class="row" style="margin-top:10px"><select id="addSaved" style="flex:1;min-width:180px"><option value="">＋ 從收藏加一個地點到這天</option>${t.places.map(x=>`<option value="${esc(x.sid)}">${esc(x.name)}</option>`).join("")}</select></div>`:""}
     </div>
-    <div class="card stack"><h3>想改什麼直接說</h3><textarea id="ref" style="min-height:70px" placeholder="例:第二天輕鬆一點、加一間咖啡廳、晚餐想吃火鍋"></textarea>
+    <div class="card stack"><h3>想改什麼直接說</h3><textarea id="ref" style="min-height:70px" placeholder="例:第二天輕鬆一點、加一間咖啡廳、晚餐想吃火鍋">${esc(S.refDraft||"")}</textarea>
       <div class="row"><button class="btn primary" id="refGo" ${busy?"disabled":""}>請 AI 改</button></div></div>
     ${Object.keys(P.stays||{}).length?`<div class="card"><h3 style="margin-bottom:4px">🛏 我的住宿</h3>${days.map((x,j)=>{ const st=(P.stays||{})[j]; return `<div class="place"><span class="small muted">第 ${j+1} 天晚上</span> ${st?`<b>${esc(st.name)}</b>${st.address?`<div class="small">📍 ${esc(st.address)}</div>`:""}<div class="links">${stayLinks(st,country)}</div>`:`<span class="small muted">還沒設定</span>`}</div>`; }).join("")}</div>`:""}
     ${(P.hotels||[]).length?`<div class="card"><h3 style="margin-bottom:4px">🏨 住宿建議</h3>${P.hotels.map(h=>`<div class="place"><b>${esc(h.area)}</b> <span class="small muted">${esc(h.nights||"")}</span><div class="small">${esc(h.why||"")}</div>
@@ -529,6 +556,7 @@ function renderItin(){
   drawMap(d.stops||[]);
   $("#back").onclick=()=>{ S.trip=null; renderTrip(); };
   $("#cpIt").onclick=()=>copy(itinText(t));
+  $("#resumeIt") && ($("#resumeIt").onclick=async()=>{ try{ await api("/api/tz?a=trip&id="+t.id,{method:"POST",body:{resume:true}}); t.status="排細節"; await load(); renderItin(); schedulePoll(); toast("接著排了"); }catch(e){ toast(e.message); } });
   $("#editIt").onclick=()=>{ S.editMode=!S.editMode; S.stopEdit=null; renderItin(); };
   $("#edTitleSave") && ($("#edTitleSave").onclick=async()=>{ P.title=$("#edTitle").value.trim()||P.title; P.overview=$("#edOverview").value.trim(); t.name=P.title||t.name; renderItin(); await saveTrip(); toast("存好了"); });
   $("#edDaySave") && ($("#edDaySave").onclick=async()=>{ d.area=$("#edArea").value.trim(); d.theme=$("#edTheme").value.trim(); d.date=$("#edDate").value; renderItin(); await saveTrip(); toast("這天存好了"); });
@@ -567,7 +595,8 @@ function renderItin(){
     P.stays ||= {}; for(let j=a;j<=b;j++) P.stays[j]={name:name||address, address};
     S.stayEdit=null; renderItin(); await saveTrip(); toast("住宿存好了");
   });
-  $("#refGo").onclick=async()=>{ const ins=$("#ref").value.trim(); if(!ins){ toast("先寫想怎麼改"); return; }
+  $("#ref").oninput=e=>{ S.refDraft=e.target.value; };
+  $("#refGo").onclick=async()=>{ const ins=$("#ref").value.trim(); if(!ins){ toast("先寫想怎麼改"); return; } S.refDraft="";
     try{ await api("/api/tz?a=trip&id="+t.id,{method:"POST",body:{instruction:ins}}); t.status="修改中"; await load(); renderItin(); schedulePoll(); }catch(e){ toast(e.message); } };
 }
 
@@ -597,7 +626,7 @@ async function renderSet(){
     <div class="card small"><h3 style="margin-bottom:6px">狀態</h3>
       <div>抓貼文服務(Apify):${s.apify?"✅ 已設定":"❌ 還沒設定"}</div>
       <div>AI 整理(Claude):${s.ai?"✅ 已設定":"❌ 還沒設定 —— 到 Vercel 加 ANTHROPIC_API_KEY"}</div></div>
-    <div class="row" style="justify-content:space-between"><button class="btn small" id="logout">登出</button><span class="small muted">版本 11/06 05:20</span></div>
+    <div class="row" style="justify-content:space-between"><button class="btn small" id="logout">登出</button><span class="small muted">版本 11/06 17:30</span></div>
   </div>`;
   $("#cpUrl").onclick=()=>copy(s.url);
   $("#rot").onclick=async()=>{ const r=await api("/api/tz?a=share",{method:"POST",body:{rotate:true}}).catch(e=>toast(e.message)); if(r){ s.url=r.url; toast("換好了,記得改捷徑裡的網址"); } };

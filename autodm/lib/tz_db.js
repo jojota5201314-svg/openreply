@@ -33,6 +33,8 @@ const SCHEMA = [
     pending TEXT DEFAULT ''
   )`,
   `CREATE TABLE IF NOT EXISTS tz_settings (k TEXT PRIMARY KEY, v TEXT)`,
+  `ALTER TABLE tz_trips ADD COLUMN IF NOT EXISTS step_at TIMESTAMPTZ DEFAULT NOW()`,
+  `ALTER TABLE tz_posts ADD COLUMN IF NOT EXISTS step_at TIMESTAMPTZ DEFAULT NOW()`,
 ];
 let ready = null;
 export async function tq(sql, params = []) {

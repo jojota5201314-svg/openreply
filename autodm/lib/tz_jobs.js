@@ -5,18 +5,20 @@ import { fetchPost, platformOf } from "./tz_fetch.js";
 import { analyze, refineTrip, planOutline, planDay } from "./tz_ai.js";
 import { baseUrl } from "./env.js";
 
+// 叫下一步:只負責把請求送出去,不等它做完(等的話會一層套一層,超過 5 分鐘就被切斷)
 export function kick(request, type, id) {
   const url = `${baseUrl(request)}/api/tz?a=run`;
-  const p = fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "x-tz-internal": process.env.CRON_SECRET || "" },
-    body: JSON.stringify({ type, id }) }).then((r) => r.text()).catch((e) => console.error("kick failed", e));
-  waitUntil(p);
+  const ctl = new AbortController();
+  const p = fetch(url, { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json", "x-tz-internal": process.env.CRON_SECRET || "" },
+    body: JSON.stringify({ type, id }) }).then((r) => r.text()).catch(() => {});
+  waitUntil(Promise.race([p, new Promise((r) => setTimeout(r, 4000))]).then(() => ctl.abort()));
 }
 
 export async function runPost(id) {
   const [p] = await tq("SELECT * FROM tz_posts WHERE id = $1", [id]);
   if (!p) return { done: true };
   if (p.status === "排隊中") {
-    await tq("UPDATE tz_posts SET status = '抓取中', error = '', tries = tries + 1 WHERE id = $1", [id]);
+    await tq("UPDATE tz_posts SET status = '抓取中', error = '', tries = tries + 1, step_at = NOW() WHERE id = $1", [id]);
     if (!p.url) {
       await tq("UPDATE tz_posts SET status = '待整理', raw = $2 WHERE id = $1", [id, JSON.stringify({})]);
       return { next: true };
@@ -32,7 +34,7 @@ export async function runPost(id) {
     return { next: true };
   }
   if (p.status === "待整理") {
-    await tq("UPDATE tz_posts SET status = 'AI 整理中' WHERE id = $1", [id]);
+    await tq("UPDATE tz_posts SET status = 'AI 整理中', step_at = NOW() WHERE id = $1", [id]);
     try {
       const d = await analyze(p);
       await tq(`UPDATE tz_posts SET status = '完成', error = '', data = $2, title = $3, category = $4, subcategory = $5, country = $6, region = $7 WHERE id = $1`,
@@ -48,6 +50,10 @@ export async function runPost(id) {
 export async function runTrip(id) {
   const [t] = await tq("SELECT * FROM tz_trips WHERE id = $1", [id]);
   if (!t) return { done: true };
+  // 同一個行程正在排(2 分半內有動作)就不重複排
+  const claim = await tq("UPDATE tz_trips SET step_at = NOW() WHERE id = $1 AND (step_at IS NULL OR step_at < NOW() - INTERVAL '150 seconds') RETURNING id", [id]);
+  if (!claim.length) return { done: true, busy: true };
+  const release = () => tq("UPDATE tz_trips SET step_at = NULL WHERE id = $1", [id]);
   try {
     if (t.status === "生成中") {
       const o = await planOutline(t.params || {}, t.places || []);
@@ -56,6 +62,7 @@ export async function runTrip(id) {
       const booked = (t.params || {}).booked || [];
       if (booked.length) { o.stays = {}; for (const h of booked) for (let k = h.from; k <= h.to; k++) if (k - 1 < o.days.length) o.stays[k - 1] = { name: h.name, address: h.address || "" }; }
       await tq("UPDATE tz_trips SET status = '排細節', error = '', plan = $2, name = $3, pending = '0' WHERE id = $1", [id, JSON.stringify(o), o.title || t.name]);
+      await release();
       return { next: true };
     }
     if (t.status === "排細節") {
@@ -68,6 +75,7 @@ export async function runTrip(id) {
       const last = i >= plan.days.length - 1;
       await tq("UPDATE tz_trips SET status = $2, plan = $3, pending = $4 WHERE id = $1",
         [id, last ? "完成" : "排細節", JSON.stringify(plan), last ? "" : String(i + 1)]);
+      await release();
       return last ? { done: true } : { next: true };
     }
     if (t.status === "修改中") {
@@ -81,5 +89,6 @@ export async function runTrip(id) {
     await tq("UPDATE tz_trips SET status = $2, error = $3, pending = '' WHERE id = $1", [id, failed,
       (t.status === "排細節" ? `第 ${Number(t.pending || 0) + 1} 天之後沒排好:` : "") + e.message]);
   }
+  await release();
   return { done: true };
 }
