@@ -185,7 +185,7 @@ async function loadRules() {
       </div>
       <div style="margin-top:6px">${r.triggers.split(",").map((t) => `<span class="pill">${TRIG[t] || t}</span>`).join("")}
         <span class="pill">${r.account_ig_id ? "@" + esc(accName(r.account_ig_id) || r.account_ig_id) : "全部帳號"}</span>
-        ${r.media_id ? '<span class="pill">📌 只限一篇貼文</span>' : ""}
+        ${r.media_id ? '<span class="pill">📌 只限一篇貼文</span>' : ""}${r.follow_gate ? '<span class="pill">🔒 要追蹤才給</span>' : ""}
         <span class="muted">關鍵字：${esc(r.keywords)}（${r.match_mode === "exact" ? "完全一樣" : "包含就算"}）</span></div>
       <div class="muted" style="margin-top:4px">私訊：${esc(String(r.dm_text).slice(0, 80))}${String(r.dm_text).length > 80 ? "…" : ""}</div>
     </div>`).join("") : '<div class="card muted">還沒有規則，按右上「新增規則」。</div>';
@@ -211,7 +211,7 @@ function buttonRow(b = { type: "url", title: "", url: "" }) {
 
 function edit(r) {
   const isNew = !r;
-  r = r || { name: "", account_ig_id: "", triggers: "comment", keywords: "", match_mode: "contains", media_id: "", public_replies: "", opener_text: "", opener_button: "", dm_text: "", buttons: [], active: true, sort: 100 };
+  r = r || { follow_gate: false, follow_text: "", name: "", account_ig_id: "", triggers: "comment", keywords: "", match_mode: "contains", media_id: "", public_replies: "", opener_text: "", opener_button: "", dm_text: "", buttons: [], active: true, sort: 100 };
   const t = r.triggers.split(",");
   const box = $("#ruleEditor"); box.hidden = false;
   box.innerHTML = `<h2>${isNew ? "新增規則" : "編輯規則 #" + r.id}</h2>
@@ -229,6 +229,11 @@ function edit(r) {
       <div class="hint">留言觸發時，先送開場訊息＋一顆按鈕；對方點了按鈕，才送上面的私訊內容。比較不會被當廣告，也能確定對方有看到。</div>
       <label>開場訊息</label><textarea id="f_open" placeholder="嗨！謝謝你留言，點下面按鈕拿資料 👇">${esc(r.opener_text)}</textarea>
       <label>按鈕文字</label><input type="text" id="f_openbtn" maxlength="20" placeholder="給我資料" value="${esc(r.opener_button)}">
+    </details>
+    <details ${r.follow_gate ? "open" : ""}><summary>進階：要先追蹤才給（大眾占卜適合）</summary>
+      <div class="hint">打開後：留言的人先收到一顆按鈕 → 按了以後，系統看他有沒有追蹤你。有追蹤就送上面的私訊內容；還沒追蹤，就請他先追蹤，追蹤好再按一次「我追蹤好了」。IG 沒告訴系統追蹤狀態時，會直接給，不會卡住真的粉絲。</div>
+      <label class="checks"><label><input type="checkbox" id="f_follow" ${r.follow_gate ? "checked" : ""}> 要先追蹤才給</label></label>
+      <label>請對方追蹤的訊息 <span class="muted">選填；空白會用「先追蹤 @你的帳號，追蹤好之後再按一次下面的按鈕…」</span></label><textarea id="f_followtxt" placeholder="還差一步～先追蹤我，追蹤好再按一次下面按鈕，就會收到你選的牌 💜">${esc(r.follow_text || "")}</textarea>
     </details>
     <details id="mediaBox" ${r.media_id ? "open" : ""}><summary>進階：只限某一篇貼文</summary>
       <div class="hint">先在上面「哪個帳號」選一個帳號，再按下面的按鈕，點你要的那篇。限定後，只有那篇貼文的留言會觸發這條規則（限動回覆、私訊不會觸發）。</div>
@@ -254,7 +259,7 @@ function edit(r) {
       triggers: [...document.querySelectorAll(".f_trig:checked")].map((c) => c.value),
       keywords: $("#f_kw").value, match_mode: $("#f_mode").value, public_replies: $("#f_pub").value, dm_text: $("#f_dm").value,
       opener_text: $("#f_open").value, opener_button: $("#f_openbtn").value, media_id: $("#f_media").value, sort: $("#f_sort").value,
-      active: $("#f_active").checked,
+      active: $("#f_active").checked, follow_gate: $("#f_follow").checked, follow_text: $("#f_followtxt").value,
       buttons: [...$("#f_btns").children].map((d) => ({ type: $(".bt", d).value, title: $(".btitle", d).value, url: $(".burl", d).value, rule_id: $(".brule", d).value })),
     };
     try { await api("/api/admin/rules", { method: "POST", body }); toast("已儲存"); box.hidden = true; loadRules(); }
