@@ -51,6 +51,8 @@ const SCHEMA = [
     status TEXT,
     detail TEXT
   )`,
+  `ALTER TABLE ad_rules ADD COLUMN IF NOT EXISTS follow_gate BOOLEAN DEFAULT FALSE`,
+  `ALTER TABLE ad_rules ADD COLUMN IF NOT EXISTS follow_text TEXT DEFAULT ''`,
 ];
 
 export async function q(sql, params = []) {

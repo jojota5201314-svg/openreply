@@ -42,8 +42,15 @@ export function contentMessage(rule) {
 }
 /** ManyChat-style opener: a short message with one tap button; the tap delivers the content. */
 function openerMessage(rule) {
-  return { attachment: { type: "template", payload: { template_type: "button", text: String(rule.opener_text).slice(0, 640),
-    buttons: [{ type: "postback", title: String(rule.opener_button || "給我").slice(0, 20), payload: `R:${rule.id}` }] } } };
+  const text = rule.opener_text || "嗨！謝謝你留言，點下面按鈕看你的結果 👇";
+  return { attachment: { type: "template", payload: { template_type: "button", text: String(text).slice(0, 640),
+    buttons: [{ type: "postback", title: String(rule.opener_button || "看結果").slice(0, 20), payload: `R:${rule.id}` }] } } };
+}
+/** Follow gate: ask them to follow first; the button runs the same rule again. */
+function followMessage(rule, username) {
+  const text = rule.follow_text || `先追蹤 @${username || "我"}，追蹤好之後再按一次下面的按鈕，就會收到你的結果 💜`;
+  return { attachment: { type: "template", payload: { template_type: "button", text: String(text).slice(0, 640),
+    buttons: [{ type: "postback", title: "我追蹤好了", payload: `R:${rule.id}` }] } } };
 }
 function pickLine(s) {
   const lines = String(s || "").split("\n").map((l) => l.trim()).filter(Boolean);
@@ -67,7 +74,8 @@ async function onComment(acc, v) {
   if (!rule) return log({ ...base, status: "沒對到規則" });
   const done = [];
   try {
-    const msg = rule.opener_text ? openerMessage(rule) : contentMessage(rule);
+    // A follow-gated rule always starts with a button: the tap opens the chat so we can check follow status.
+    const msg = rule.opener_text || rule.follow_gate ? openerMessage(rule) : contentMessage(rule);
     await ig.sendMessage(acc.ig_id, acc.token, { comment_id: commentId }, msg);
     done.push("已私訊");
   } catch (e) { await log({ ...base, rule_id: rule.id, status: "私訊失敗", detail: e.message }); }
@@ -80,6 +88,13 @@ async function onComment(acc, v) {
 }
 
 async function sendContent(acc, userId, rule, base) {
+  if (rule.follow_gate && (await ig.followsUs(userId, acc.token)) === false) {
+    try {
+      await ig.sendMessage(acc.ig_id, acc.token, { id: userId }, followMessage(rule, acc.username));
+      await log({ ...base, rule_id: rule.id, status: "請對方先追蹤" });
+    } catch (e) { await log({ ...base, rule_id: rule.id, status: "私訊失敗", detail: e.message }); }
+    return;
+  }
   try {
     await ig.sendMessage(acc.ig_id, acc.token, { id: userId }, contentMessage(rule));
     await log({ ...base, rule_id: rule.id, status: "已私訊" });

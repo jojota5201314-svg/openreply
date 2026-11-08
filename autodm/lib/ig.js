@@ -89,3 +89,14 @@ export async function recentMedia(token, limit = 30) {
     thumb: m.thumbnail_url || (m.media_type === "VIDEO" ? null : m.media_url) || null,
   }));
 }
+
+/** Does this person follow the business account? true / false, or null when Instagram doesn't say. */
+export async function followsUs(userId, token) {
+  const u = new URL(`${graphBase()}/${userId}`);
+  u.searchParams.set("fields", "is_user_follow_business");
+  u.searchParams.set("access_token", token);
+  try {
+    const d = await call(u.toString());
+    return typeof d.is_user_follow_business === "boolean" ? d.is_user_follow_business : null;
+  } catch { return null; }
+}
