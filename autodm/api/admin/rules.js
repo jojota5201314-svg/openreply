@@ -22,6 +22,8 @@ function clean(b) {
     buttons: JSON.stringify(buttons),
     active: b.active !== false,
     sort: Number.isFinite(Number(b.sort)) ? Number(b.sort) : 100,
+    follow_gate: b.follow_gate === true,
+    follow_text: String(b.follow_text || "").slice(0, 640),
   };
   const errs = [];
   if (!r.name) errs.push("請填規則名稱");
@@ -42,14 +44,14 @@ export async function POST(request) {
   const b = await readJson(request);
   const { r, errs } = clean(b);
   if (errs.length) return json({ error: errs.join("；") }, 400);
-  const vals = [r.name, r.account_ig_id, r.triggers, r.keywords, r.match_mode, r.media_id, r.public_replies, r.opener_text, r.opener_button, r.dm_text, r.buttons, r.active, r.sort];
+  const vals = [r.name, r.account_ig_id, r.triggers, r.keywords, r.match_mode, r.media_id, r.public_replies, r.opener_text, r.opener_button, r.dm_text, r.buttons, r.active, r.sort, r.follow_gate, r.follow_text];
   if (b.id) {
     await q(`UPDATE ad_rules SET name=$1, account_ig_id=$2, triggers=$3, keywords=$4, match_mode=$5, media_id=$6, public_replies=$7,
-             opener_text=$8, opener_button=$9, dm_text=$10, buttons=$11, active=$12, sort=$13 WHERE id=$14`, [...vals, Number(b.id)]);
+             opener_text=$8, opener_button=$9, dm_text=$10, buttons=$11, active=$12, sort=$13, follow_gate=$14, follow_text=$15 WHERE id=$16`, [...vals, Number(b.id)]);
     return json({ ok: true, id: Number(b.id) });
   }
-  const rows = await q(`INSERT INTO ad_rules (name, account_ig_id, triggers, keywords, match_mode, media_id, public_replies, opener_text, opener_button, dm_text, buttons, active, sort)
-                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`, vals);
+  const rows = await q(`INSERT INTO ad_rules (name, account_ig_id, triggers, keywords, match_mode, media_id, public_replies, opener_text, opener_button, dm_text, buttons, active, sort, follow_gate, follow_text)
+                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`, vals);
   return json({ ok: true, id: rows[0].id });
 }
 export async function DELETE(request) {
