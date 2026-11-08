@@ -72,3 +72,20 @@ export async function sendMessage(igId, token, recipient, message) {
 export async function replyToComment(commentId, token, text) {
   return call(`${graphBase()}/${commentId}/replies`, { method: "POST", token, body: { message: text } });
 }
+
+/** The account's latest posts and Reels (newest first), for picking one post in a rule. */
+export async function recentMedia(token, limit = 30) {
+  const u = new URL(`${graphBase()}/me/media`);
+  u.searchParams.set("fields", "id,caption,media_type,permalink,timestamp,thumbnail_url,media_url");
+  u.searchParams.set("limit", String(limit));
+  u.searchParams.set("access_token", token);
+  const d = await call(u.toString());
+  return (d.data || []).map((m) => ({
+    id: String(m.id),
+    caption: String(m.caption || "").replace(/\s+/g, " ").slice(0, 60),
+    type: m.media_type,
+    date: m.timestamp,
+    link: m.permalink,
+    thumb: m.thumbnail_url || (m.media_type === "VIDEO" ? null : m.media_url) || null,
+  }));
+}
