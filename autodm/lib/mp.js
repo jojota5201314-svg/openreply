@@ -60,11 +60,16 @@ const SYS = `你是 Jojo 的命理解讀助手。Jojo 是台灣的塔羅占卜�
 - 不說「一定」「保證」「注定」,講傾向和建議。
 - 健康只講要多留意的方向,不做醫療診斷,提醒有不舒服要看醫生。
 - 不嚇人、不講破財消災、不推銷任何東西。
-- 時辰不明時,說明哪些部分因此比較不準。`;
+- 時辰不明時,說明哪些部分因此比較不準。
+白話解釋(很重要):
+- 讀者是完全不懂命理的人,要寫到國小五年級的小朋友都看得懂。
+- 每次提到專有名詞(例如日主、月令、喜用神、忌神、十神、大運、流年、命宮、身宮、主星、廟旺陷、化祿化權化科化忌),第一次出現時馬上用一句白話解釋它是什麼,可以用生活比喻(例如「日主就是代表你自己的那個字」「喜用神就像你的補給品,遇到它比較順」)。
+- 每段的「依據」後面接一行「白話說:」,把依據翻成小朋友懂的話,再寫結論。
+- 句子短,一句只講一件事;不用文言文和艱深成語。`;
 
 async function makeTeaser(chart) {
   const user = `以下是命盤:\n${chartText(chart)}\n\n請給簡短的免費版解讀,用 JSON:
-{"keywords":[{"word":"兩到四字的個性關鍵詞","basis":"一句盤面依據","scene":"一句生活中會出現的具體場景"}](剛好 3 個),
+{"keywords":[{"word":"兩到四字的個性關鍵詞","basis":"一句盤面依據,後面用括號加一句小學五年級看得懂的白話解釋","scene":"一句生活中會出現的具體場景"}](剛好 3 個),
  "wake":"一句像師父一樣的當頭棒喝(30 字內)",
  "tease":"一句話說完整版會幫他看清楚的事(針對他的盤,具體但不嚇人,40 字內)"}`;
   return claude(SYS, user, { asJson: true, maxTokens: 1500, timeoutMs: 60000, model: process.env.MP_TEASER_MODEL || "claude-haiku-5-5" });
@@ -95,7 +100,7 @@ const FULL_PARTS = (chart) => {
 async function makeFull(chart) {
   const parts = FULL_PARTS(chart);
   const texts = await Promise.all(parts.map((spec, i) => claude(SYS,
-    `以下是命盤:\n${chartText(chart)}\n\n完整解讀分成上下兩半,你這次只寫${i ? "下" : "上"}半,用 Markdown,照下面的標題,每段先寫「依據」再寫結論,不要寫開場白和結語,也不要寫其他段落:\n${spec}\n\n這一半寫 1200 到 1800 字。`,
+    `以下是命盤:\n${chartText(chart)}\n\n完整解讀分成上下兩半,你這次只寫${i ? "下" : "上"}半,用 Markdown,照下面的標題,每段先寫「依據」再寫結論,不要寫開場白和結語,也不要寫其他段落:\n${spec}\n\n這一半寫 1500 到 2200 字。`,
     { maxTokens: 16000, timeoutMs: 240000 })));
   return texts.map((t) => t.trim()).join("\n\n");
 }
