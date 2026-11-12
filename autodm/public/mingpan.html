@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jojo 的命盤小屋｜八字＋紫微斗數</title>
+<meta name="description" content="輸入生日，排出你的八字和紫微命盤，看看你的個性關鍵詞。">
+<meta property="og:title" content="Jojo 的命盤小屋｜八字＋紫微斗數">
+<meta property="og:description" content="輸入生日，排出你的八字和紫微命盤，看看你的個性關鍵詞。">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=LXGW+WenKai+TC:wght@400;700&display=swap">
+<style>
+:root{--night:#1E1A2B;--purple:#2E2A47;--paper:#F3EEE3;--gold:#B8925A;--ink:#1C1C1C;--sub:#6d675c;--line:#d9d0bf;--red:#a4473a}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:"LXGW WenKai TC","Noto Serif TC","PingFang TC","Microsoft JhengHei",serif;line-height:1.8;font-size:17px}
+h1,h2,h3,.serif{font-family:"Noto Serif TC",serif}
+a{color:var(--purple)}
+.hero{background:var(--night);color:var(--paper);padding:34px 20px 28px;text-align:center;position:relative;overflow:hidden}
+.hero h1{margin:0;font-size:28px;font-weight:600;letter-spacing:2px}
+.hero p{margin:6px 0 0;color:#d8cfbd;font-size:15px}
+.hero .star{position:absolute;color:var(--gold);opacity:.7;font-size:12px}
+.hero .gl{width:60px;height:1px;background:var(--gold);margin:12px auto 0}
+.wrap{max-width:760px;margin:0 auto;padding:18px 16px 70px}
+.card{background:#fffdf8;border:1px solid var(--line);padding:18px 16px;margin:14px 0}
+.card.dark{background:var(--purple);color:var(--paper);border-color:var(--purple)}
+.card h2{font-size:20px;margin:0 0 10px;font-weight:600;color:var(--purple)}
+.card.dark h2{color:var(--gold)}
+label{display:block;font-size:15px;color:var(--sub);margin:12px 0 4px}
+input[type=text],input[type=date],input[type=time],input[type=password],input[type=number],textarea,select{width:100%;padding:11px 12px;border:1px solid var(--line);background:#fff;font:inherit;font-size:16px;color:var(--ink);border-radius:0}
+textarea{min-height:420px;font-size:15px;line-height:1.7}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1}
+.chk{display:flex;align-items:center;gap:6px;color:var(--sub);font-size:15px;margin-top:6px}
+.seg{display:flex;border:1px solid var(--purple)}
+.seg button{flex:1;background:#fff;color:var(--purple);border:0;padding:10px;font:inherit;cursor:pointer}
+.seg button.on{background:var(--purple);color:var(--paper)}
+.btn{display:inline-block;background:var(--purple);color:var(--paper);border:0;padding:12px 20px;font:inherit;font-size:17px;cursor:pointer;text-decoration:none;text-align:center}
+.btn.gold{background:var(--gold);color:#fff}
+.btn.ghost{background:transparent;color:var(--purple);border:1px solid var(--purple)}
+.btn.line{background:#06C755;color:#fff}
+.btn.sm{padding:7px 12px;font-size:14px}
+.btn.block{display:block;width:100%;margin-top:16px}
+.btn:disabled{opacity:.5}
+.muted{color:var(--sub);font-size:14px}
+.note{background:#f8f1e2;border-left:3px solid var(--gold);padding:8px 12px;font-size:14px;color:#5a4b33;margin:8px 0}
+.err{background:#f9e6e2;border-left:3px solid var(--red);padding:8px 12px;color:var(--red);font-size:15px;margin:10px 0}
+table{border-collapse:collapse;width:100%}
+.bz th,.bz td{border:1px solid var(--line);text-align:center;padding:6px 2px;font-size:14px}
+.bz th{background:#efe7d6;font-weight:600;color:var(--purple)}
+.bz .gz{font-family:"Noto Serif TC",serif;font-size:28px;line-height:1.2;font-weight:600}
+.bz .ss{font-size:12px;color:var(--sub)}
+.wx-木{color:#3f7d4a}.wx-火{color:#b4432f}.wx-土{color:#8a6a2f}.wx-金{color:#7b7f86}.wx-水{color:#2f5a8a}
+.bars{display:grid;grid-template-columns:28px 1fr 34px;gap:4px 8px;align-items:center;font-size:14px;margin-top:8px}
+.bar{height:10px;background:#ece4d3}
+.bar i{display:block;height:100%}
+.dy{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.dy div{flex:0 0 auto;border:1px solid var(--line);padding:4px 8px;text-align:center;font-size:13px;background:#fff}
+.dy b{display:block;font-family:"Noto Serif TC",serif;font-size:17px}
+.zw{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,minmax(96px,auto));gap:2px;background:var(--line);border:1px solid var(--line)}
+.zw .p{background:#fffdf8;padding:4px;font-size:12px;line-height:1.35;position:relative}
+.zw .p.ming{background:#f1ecfa}
+.zw .p .nm{position:absolute;right:4px;bottom:3px;color:var(--purple);font-weight:700;font-size:12px}
+.zw .p .gz{position:absolute;left:4px;bottom:3px;color:var(--sub);font-size:11px}
+.zw .p .mj{color:var(--purple);font-weight:700;font-size:14px}
+.zw .p .hua{background:var(--red);color:#fff;font-size:10px;padding:0 2px;margin-left:1px}
+.zw .p .mn{color:#6b5a3a}
+.zw .p .body{color:var(--gold);font-size:11px}
+.zw .c{grid-row:2/4;grid-column:2/4;background:var(--purple);color:var(--paper);padding:10px;font-size:13px;display:flex;flex-direction:column;justify-content:center;text-align:center}
+.zw .c b{color:var(--gold);font-family:"Noto Serif TC",serif;font-size:16px}
+.kw{border-top:1px solid rgba(243,238,227,.25);padding:10px 0}
+.kw:first-of-type{border-top:0}
+.kw .w{font-family:"Noto Serif TC",serif;font-size:22px;color:var(--gold)}
+.kw .b{font-size:13px;color:#cfc6dc}
+.wake{font-family:"Noto Serif TC",serif;font-size:20px;text-align:center;padding:12px 6px;border-top:1px solid var(--gold);border-bottom:1px solid var(--gold);margin:14px 0 4px}
+.lock{text-align:center}
+.lock .ic{font-size:30px;color:var(--gold)}
+.md h2{font-size:20px;color:var(--purple);border-bottom:1px solid var(--gold);padding-bottom:4px;margin:26px 0 10px}
+.md h3{font-size:17px;color:var(--purple);margin:18px 0 6px}
+.md table{margin:10px 0;font-size:14px}
+.md th,.md td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.md th{background:#efe7d6}
+.md blockquote{margin:10px 0;padding:6px 12px;border-left:3px solid var(--gold);background:#f8f1e2}
+.tabs{display:flex;gap:6px;margin:10px 0}
+.tabs button{flex:1}
+.item{border-bottom:1px solid var(--line);padding:10px 0;display:flex;gap:10px;align-items:center}
+.item .t{flex:1}
+.tag{display:inline-block;font-size:12px;padding:0 6px;border:1px solid var(--gold);color:#8a6a2f;margin-left:4px}
+.code{font-family:ui-monospace,Menlo,monospace;font-size:18px;letter-spacing:2px;color:var(--purple)}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:sp 1s linear infinite;vertical-align:-3px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.adminbar{background:#2b2640;color:#e8e0cc;font-size:13px;padding:6px 12px;display:flex;gap:10px;align-items:center;justify-content:center}
+.adminbar a{color:var(--gold)}
+.foot{text-align:center;color:var(--sub);font-size:13px;margin-top:30px}
+.hide{display:none!important}
+@media (max-width:520px){.bz .gz{font-size:24px}.zw .p{font-size:11px}.zw .p .mj{font-size:13px}}
+@media print{.noprint,.adminbar{display:none!important}body{background:#fff}.card{break-inside:avoid}}
+</style>
+</head>
+<body>
+<div id="adminbar" class="adminbar hide noprint">Jojo 模式（你用不用付費）｜<a href="?admin">管理</a>｜<a href="/mingpan.html">排新的</a></div>
+<header class="hero">
+  <span class="star" style="left:12%;top:22%">✦</span><span class="star" style="right:15%;top:30%">✧</span><span class="star" style="left:24%;bottom:18%">✧</span>
+  <h1>Jojo 的命盤小屋</h1>
+  <p>八字 ＋ 紫微斗數｜程式排盤，Jojo 解讀</p>
+  <div class="gl"></div>
+</header>
+<main class="wrap" id="app"></main>
+<div class="foot noprint">@jojotarot｜命理是參考，人生方向盤在你手上</div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const app = $("#app");
+let CFG = { admin: false, line_url: "", price_note: "" };
+
+async function api(a, opt = {}) {
+  const r = await fetch("/api/mp?a=" + a + (opt.qs || ""), { method: opt.method || (opt.body ? "POST" : "GET"), headers: opt.body ? { "Content-Type": "application/json" } : {}, body: opt.body ? JSON.stringify(opt.body) : undefined, credentials: "same-origin" });
+  const j = await r.json().catch(() => ({ error: "伺服器沒有回應" }));
+  if (!r.ok) throw new Error(j.error || "出錯了");
+  return j;
+}
+
+// ===== 簡單的 Markdown 轉 HTML =====
+function md(src) {
+  const inl = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*]+)\*/g, "$1<i>$2</i>");
+  const lines = String(src || "").replace(/\r/g, "").split("\n");
+  let out = "", i = 0;
+  while (i < lines.length) {
+    const l = lines[i];
+    if (/^\s*\|/.test(l)) {
+      const rows = [];
+      while (i < lines.length && /^\s*\|/.test(lines[i])) { rows.push(lines[i]); i++; }
+      const cells = (r) => r.trim().replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+      const body = rows.filter((r) => !/^[\s|:-]+$/.test(r));
+      const [head, ...rest] = body;
+      out += "<table><tr>" + cells(head).map((c) => "<th>" + inl(c) + "</th>").join("") + "</tr>" + rest.map((r) => "<tr>" + cells(r).map((c) => "<td>" + inl(c) + "</td>").join("") + "</tr>").join("") + "</table>";
+      continue;
+    }
+    let m;
+    if ((m = /^(#{1,4})\s+(.*)/.exec(l))) { const n = Math.min(Math.max(m[1].length, 2), 3); out += `<h${n}>${inl(m[2])}</h${n}>`; i++; continue; }
+    if (/^\s*([-*]|\d+\.)\s+/.test(l)) {
+      const ol = /^\s*\d+\./.test(l); let items = "";
+      while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) { items += "<li>" + inl(lines[i].replace(/^\s*([-*]|\d+\.)\s+/, "")) + "</li>"; i++; }
+      out += ol ? "<ol>" + items + "</ol>" : "<ul>" + items + "</ul>"; continue;
+    }
+    if (/^>\s?/.test(l)) { let q = ""; while (i < lines.length && /^>\s?/.test(lines[i])) { q += inl(lines[i].replace(/^>\s?/, "")) + "<br>"; i++; } out += "<blockquote>" + q + "</blockquote>"; continue; }
+    if (/^\s*(-{3,}|\*{3,})\s*$/.test(l)) { out += "<hr>"; i++; continue; }
+    if (!l.trim()) { i++; continue; }
+    let p = "";
+    while (i < lines.length && lines[i].trim() && !/^(#|\s*\||\s*([-*]|\d+\.)\s|>)/.test(lines[i])) { p += (p ? "<br>" : "") + inl(lines[i]); i++; }
+    out += "<p>" + p + "</p>";
+  }
+  return out;
+}
+
+// ===== 表單 =====
+function viewForm() {
+  document.title = "Jojo 的命盤小屋｜八字＋紫微斗數";
+  app.innerHTML = `
+  <div class="card">
+    <h2>輸入你的生日</h2>
+    <p class="muted" style="margin:0">排盤由程式計算（含節氣交界、台灣夏令時間），不是 AI 亂猜。</p>
+    <label>暱稱（選填）</label><input type="text" id="f-name" maxlength="20" placeholder="例如：小明">
+    <label>國曆出生日期</label><input type="date" id="f-date" min="1901-01-01" max="2099-12-31" value="1995-01-01">
+    <label>出生時間</label><input type="time" id="f-time">
+    <div class="chk"><input type="checkbox" id="f-notime"><label for="f-notime" style="margin:0">不知道出生時間（紫微斗數就排不了）</label></div>
+    <label>性別（排大運和紫微要用）</label>
+    <div class="seg" id="f-gender"><button type="button" data-v="女" class="on">女</button><button type="button" data-v="男">男</button></div>
+    <label>出生地（選填）</label><input type="text" id="f-place" maxlength="40" placeholder="例如：嘉義">
+    <div class="chk"><input type="checkbox" id="f-tw" checked><label for="f-tw" style="margin:0">在台灣出生（自動處理以前的夏令時間）</label></div>
+    ${CFG.admin ? `<label>這份是給誰的</label><div class="seg" id="f-src"><button type="button" data-v="自己" class="on">自己／家人朋友</button><button type="button" data-v="付費客人">付費客人</button></div>` : ""}
+    <div id="f-err"></div>
+    <button class="btn block" id="f-go">排出我的命盤</button>
+  </div>
+  <div class="card"><h2>你會看到</h2>
+    <p style="margin:0">✦ 八字四柱、五行分布、大運<br>✦ 紫微斗數十二宮命盤<br>✦ 你的 3 個個性關鍵詞＋一句當頭棒喝</p>
+    <p class="muted">想看工作、感情、健康、未來 3 年流年，還有「10 年後的你寫給現在的你的一封信」，可以解鎖完整版。</p>
+  </div>`;
+  for (const g of ["#f-gender", "#f-src"]) { const el = $(g); if (el) el.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; el.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); }; }
+  $("#f-notime").onchange = (e) => { $("#f-time").disabled = e.target.checked; };
+  $("#f-go").onclick = async () => {
+    const btn = $("#f-go"), err = $("#f-err"); err.innerHTML = "";
+    const time = $("#f-notime").checked ? "" : $("#f-time").value;
+    if (!$("#f-date").value) { err.innerHTML = `<div class="err">請選出生日期</div>`; return; }
+    if (!time && !$("#f-notime").checked) { err.innerHTML = `<div class="err">請填出生時間，不知道的話勾「不知道出生時間」</div>`; return; }
+    btn.disabled = true; btn.innerHTML = `<span class="spin"></span>排盤中，大約 10 秒…`;
+    try {
+      const r = await api("chart", { body: { name: $("#f-name").value.trim(), date: $("#f-date").value, time, gender: $("#f-gender .on").dataset.v, place: $("#f-place").value.trim(), taiwan: $("#f-tw").checked, source: $("#f-src .on")?.dataset.v } });
+      history.pushState(null, "", "?id=" + r.id); viewReading(r);
+    } catch (e) { err.innerHTML = `<div class="err">${esc(e.message)}</div>`; btn.disabled = false; btn.textContent = "排出我的命盤"; }
+  };
+}
+
+// ===== 命盤 =====
+const ZW_POS = { 巳: [1, 1], 午: [1, 2], 未: [1, 3], 申: [1, 4], 酉: [2, 4], 戌: [3, 4], 亥: [4, 4], 子: [4, 3], 丑: [4, 2], 寅: [4, 1], 卯: [3, 1], 辰: [2, 1] };
+function chartHtml(c) {
+  const b = c.bazi, inp = c.input;
+  const cols = [...b.pillars].reverse(); // 傳統由右到左:時日月年 → 這裡顯示 時 日 月 年
+  let h = `<div class="card"><h2>${esc(inp.name || "你")}的命盤</h2>
+    <div class="muted">國曆 ${esc(inp.date)} ${esc(inp.time || "（時間不明）")}｜${esc(inp.gender)}｜農曆 ${esc(c.lunar)}｜生肖 ${esc(c.zodiac)}${inp.place ? "｜" + esc(inp.place) : ""}</div>
+    ${c.notes.map((n) => `<div class="note">${esc(n)}</div>`).join("")}
+    <h3 class="serif" style="color:var(--purple);margin:14px 0 6px">八字</h3>
+    <table class="bz"><tr>${cols.map((p) => `<th>${p.label}</th>`).join("")}</tr>
+    <tr>${cols.map((p) => `<td><div class="ss">${esc(p.shishen)}</div><div class="gz wx-${p.ganWx}">${p.gan}</div><div class="gz wx-${p.zhiWx}">${p.zhi}</div></td>`).join("")}</tr>
+    <tr>${cols.map((p) => `<td class="ss">${p.hidden.map((x) => `<span class="wx-${x.wx}">${x.gan}</span>${esc(x.shishen)}`).join("<br>")}</td>`).join("")}</tr>
+    <tr>${cols.map((p) => `<td class="ss">${esc(p.nayin)}</td>`).join("")}</tr></table>
+    <div class="muted" style="margin-top:8px">日主：<b class="wx-${b.dayMasterWx}">${b.dayMaster}${b.dayMasterWx}</b></div>
+    <div class="bars">${Object.entries(b.wuxing).map(([k, v]) => { const max = Math.max(...Object.values(b.wuxing)); const col = { 木: "#3f7d4a", 火: "#b4432f", 土: "#8a6a2f", 金: "#7b7f86", 水: "#2f5a8a" }[k]; return `<span class="wx-${k}">${k}</span><div class="bar"><i style="width:${(v / max) * 100}%;background:${col}"></i></div><span>${v}</span>`; }).join("")}</div>`;
+  if (b.dayun.length) h += `<h3 class="serif" style="color:var(--purple);margin:14px 0 6px">大運 <span class="muted">${esc(b.qiyun)}</span></h3><div class="dy">${b.dayun.map((d) => `<div><b>${d.gz}</b>${d.age} 歲<br><span class="muted">${d.year}</span></div>`).join("")}</div>`;
+  h += `</div>`;
+  if (c.ziwei) {
+    const z = c.ziwei;
+    const star = (s, cls) => `<span class="${cls}">${esc(s.name)}${s.b ? `<small>${esc(s.b)}</small>` : ""}${s.hua ? `<span class="hua">${esc(s.hua)}</span>` : ""}</span>`;
+    h += `<div class="card"><h2>紫微斗數</h2><div class="zw">` +
+      z.palaces.map((p) => { const [r, col] = ZW_POS[p.branch]; return `<div class="p ${p.branch === z.soulBranch ? "ming" : ""}" style="grid-row:${r};grid-column:${col}">
+        ${p.major.map((s) => star(s, "mj")).join(" ") || '<span class="muted">（空宮）</span>'}<br>
+        <span class="mn">${p.minor.map((s) => star(s, "")).join(" ")}</span>
+        ${p.isBody ? '<div class="body">身宮</div>' : ""}
+        <div class="muted" style="font-size:10px">${p.decadal.join("–")}</div>
+        <span class="gz">${p.stem}${p.branch}</span><span class="nm">${esc(p.name)}</span></div>`; }).join("") +
+      `<div class="c"><b>${esc(inp.name || "命盤")}</b>${esc(z.chineseDate)}<br>${esc(z.lunarDate)} ${esc(z.time)}<br>${esc(z.fiveElementsClass)}<br>命主 ${esc(z.soul)}｜身主 ${esc(z.body)}</div></div>
+      <p class="muted" style="margin:6px 0 0">紫色底是命宮；紅字是四化（祿權科忌）；格子下方數字是大限歲數。</p></div>`;
+  }
+  return h;
+}
+
+function teaserHtml(r) {
+  const t = r.teaser;
+  if (!t) return r.status === "免費版失敗" ? `<div class="err">解讀沒寫出來：${esc(r.error)}（命盤是對的，晚點重新整理再試）</div>` : "";
+  return `<div class="card dark"><h2>你的 3 個關鍵詞</h2>
+    ${(t.keywords || []).map((k) => `<div class="kw"><div class="w">${esc(k.word)}</div><div class="b">${esc(k.basis)}</div><div>${esc(k.scene)}</div></div>`).join("")}
+    <div class="wake">「${esc(t.wake)}」</div></div>`;
+}
+
+function lockHtml(r) {
+  const t = r.teaser || {};
+  return `<div class="card lock noprint" id="lock"><div class="ic">✦</div><h2>完整解讀</h2>
+    ${t.tease ? `<p class="serif" style="font-size:18px">${esc(t.tease)}</p>` : ""}
+    <p class="muted">包含：命盤重點（喜用神）、工作與錢、感情、健康與家庭、未來 3 年流年、一句當頭棒喝、10 年後的你寫給現在的你的信、優勢盲點總表</p>
+    <p>${esc(CFG.price_note)}</p>
+    ${CFG.line_url ? `<a class="btn line block" href="${esc(CFG.line_url)}" target="_blank" rel="noopener">加 LINE 找 Jojo</a>` : ""}
+    <label style="text-align:left">已經拿到解鎖碼？</label>
+    <div class="row"><input type="text" id="u-code" maxlength="10" placeholder="輸入 6 碼解鎖碼" style="text-transform:uppercase"><button class="btn gold" id="u-go" style="flex:0 0 auto">解鎖</button></div>
+    <div id="u-err"></div>
+    <p class="muted" style="margin-bottom:0">把這頁加入書籤或截圖網址，之後回來還看得到。</p></div>`;
+}
+
+function fullHtml(r) {
+  if (r.full_text) return `<div class="card md" id="full">${md(r.full_text)}</div>` + (CFG.admin ? adminEditHtml(r) : "") +
+    `<div class="row noprint" style="margin-top:6px"><button class="btn ghost" onclick="window.print()">存成 PDF／列印</button><button class="btn ghost" id="copy-link">複製這份的網址</button></div>`;
+  if (r.status === "完整版撰寫中") return `<div class="card" id="full"><span class="spin"></span>Jojo 的助手正在寫完整解讀，大約 1～2 分鐘，不要關掉這頁…</div>`;
+  return `<div class="card" id="full">${r.status === "完整版失敗" ? `<div class="err">上次沒寫成功：${esc(r.error)}</div>` : ""}<button class="btn block gold" id="full-go">寫出完整解讀</button></div>`;
+}
+
+function adminEditHtml(r) {
+  return `<div class="card noprint"><h2>Jojo 修稿</h2>
+    <p class="muted" style="margin-top:0">${r.edited ? "已經修改過。" : "這是 AI 初稿，交給客人前先看一遍、改成你的語氣。"}客人那邊看到的會是你存的版本。</p>
+    <textarea id="ed">${esc(r.full_text)}</textarea>
+    <div class="row" style="margin-top:8px"><button class="btn" id="ed-save">存檔</button><button class="btn ghost" id="ed-redo">整份重寫</button></div>
+    <div class="row" style="margin-top:8px"><label class="chk" style="margin:0"><input type="checkbox" id="ed-unlock" ${r.unlocked ? "checked" : ""}> 客人打開網址就能看完整版（付費客人交件時勾）</label></div>
+    <div id="ed-msg"></div></div>`;
+}
+
+async function viewReading(r) {
+  document.title = (r.name || "我") + "的命盤｜Jojo 的命盤小屋";
+  const unlocked = r.unlocked || CFG.admin;
+  app.innerHTML = chartHtml(r.chart) + teaserHtml(r) + (unlocked ? fullHtml(r) : lockHtml(r)) +
+    `<div class="noprint" style="text-align:center;margin-top:20px"><a class="btn ghost" href="/mingpan.html">幫別人排一張</a></div>`;
+  bind(r);
+  if (unlocked && !r.full_text && r.status === "完整版撰寫中") pollFull(r.id);
+}
+
+function bind(r) {
+  const go = $("#u-go");
+  if (go) go.onclick = async () => {
+    go.disabled = true; $("#u-err").innerHTML = "";
+    try { const r2 = await api("unlock", { body: { id: r.id, code: $("#u-code").value } }); viewReading(r2); if (!r2.full_text) startFull(r2.id); }
+    catch (e) { $("#u-err").innerHTML = `<div class="err">${esc(e.message)}</div>`; go.disabled = false; }
+  };
+  const fg = $("#full-go"); if (fg) fg.onclick = () => startFull(r.id);
+  const cl = $("#copy-link"); if (cl) cl.onclick = async () => { const u = location.origin + "/mingpan.html?id=" + r.id; try { await navigator.clipboard.writeText(u); cl.textContent = "已複製"; } catch { prompt("複製這個網址", u); } };
+  const sv = $("#ed-save");
+  if (sv) {
+    sv.onclick = async () => { sv.disabled = true; try { const r2 = await api("save", { body: { id: r.id, full_text: $("#ed").value, unlocked: $("#ed-unlock").checked } }); viewReading(r2); $("#ed-msg") && ($("#ed-msg").innerHTML = `<div class="note">存好了</div>`); } catch (e) { $("#ed-msg").innerHTML = `<div class="err">${esc(e.message)}</div>`; sv.disabled = false; } };
+    $("#ed-unlock").onchange = async (e) => { try { await api("save", { body: { id: r.id, unlocked: e.target.checked } }); $("#ed-msg").innerHTML = `<div class="note">${e.target.checked ? "客人現在打開網址就看得到完整版" : "已經鎖回去"}</div>`; } catch (er) { $("#ed-msg").innerHTML = `<div class="err">${esc(er.message)}</div>`; } };
+    $("#ed-redo").onclick = () => { if (confirm("整份重寫會蓋掉你修過的內容，確定？")) startFull(r.id, true); };
+  }
+}
+
+async function startFull(id, redo = false) {
+  const box = $("#full"); if (box) box.innerHTML = `<span class="spin"></span>正在寫完整解讀，大約 1～2 分鐘，不要關掉這頁…`;
+  try { const r = await api("full", { body: { id, redo } }); if (r.full_text && r.status !== "完整版撰寫中") return viewReading(r); }
+  catch (e) { /* 手機網路斷掉時改用輪詢 */ }
+  pollFull(id);
+}
+async function pollFull(id) {
+  for (let i = 0; i < 60; i++) {
+    await new Promise((s) => setTimeout(s, 5000));
+    try { const r = await api("get", { qs: "&id=" + encodeURIComponent(id) }); if (r.status !== "完整版撰寫中") return viewReading(r); } catch {}
+  }
+}
+
+// ===== 管理（只有 Jojo）=====
+async function viewAdmin() {
+  document.title = "管理｜命盤小屋";
+  if (!CFG.admin) {
+    app.innerHTML = `<div class="card"><h2>Jojo 登入</h2><p class="muted">和自動私訊後台同一組密碼。</p><input type="password" id="pw"><div id="pw-err"></div><button class="btn block" id="pw-go">登入</button></div>`;
+    $("#pw-go").onclick = async () => { try { await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: $("#pw").value }) }).then(async (r) => { if (!r.ok) throw new Error((await r.json()).error || "登入失敗"); }); location.reload(); } catch (e) { $("#pw-err").innerHTML = `<div class="err">${esc(e.message)}</div>`; } };
+    return;
+  }
+  app.innerHTML = `<div class="tabs"><button class="btn sm" data-t="list">紀錄</button><button class="btn sm ghost" data-t="codes">解鎖碼</button><button class="btn sm ghost" data-t="set">設定</button></div><div id="tab"></div>`;
+  const tabs = app.querySelectorAll(".tabs button");
+  tabs.forEach((b) => (b.onclick = () => { tabs.forEach((x) => x.classList.toggle("ghost", x !== b)); ({ list: tabList, codes: tabCodes, set: tabSet })[b.dataset.t](); }));
+  tabList();
+}
+async function tabList() {
+  const el = $("#tab"); el.innerHTML = `<div class="card"><span class="spin"></span>讀取中</div>`;
+  const { readings } = await api("list");
+  el.innerHTML = `<div class="card"><h2>所有命盤（${readings.length}）</h2><a class="btn sm" href="/mingpan.html">＋ 排新的</a>
+    ${readings.map((r) => `<div class="item"><div class="t"><a href="?id=${r.id}"><b>${esc(r.name || "（沒寫名字）")}</b></a><span class="tag">${esc(r.source)}</span>${r.unlocked ? '<span class="tag">已解鎖</span>' : ""}${r.edited ? '<span class="tag">已修稿</span>' : ""}<br><span class="muted">${esc(r.input?.date)} ${esc(r.input?.time || "時間不明")} ${esc(r.input?.gender)}｜${new Date(r.created).toLocaleString("zh-TW")}｜${esc(r.status)}</span></div><button class="btn sm ghost" data-del="${r.id}">刪</button></div>`).join("") || '<p class="muted">還沒有</p>'}</div>`;
+  el.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => { if (confirm("刪掉這份命盤？")) { await api("remove", { body: { id: b.dataset.del } }); tabList(); } }));
+}
+async function tabCodes() {
+  const el = $("#tab"); el.innerHTML = `<div class="card"><span class="spin"></span>讀取中</div>`;
+  const { codes } = await api("codes");
+  el.innerHTML = `<div class="card"><h2>產生解鎖碼</h2><p class="muted" style="margin-top:0">客人在 LINE 付款後，產生一組傳給他。每組只能用一次。</p>
+    <label>備註（例如客人 LINE 名字）</label><input type="text" id="c-note" maxlength="40">
+    <button class="btn block" id="c-go">產生 1 組</button><div id="c-new"></div></div>
+    <div class="card"><h2>最近的解鎖碼</h2>${codes.map((c) => `<div class="item"><div class="t"><span class="code">${c.code}</span> ${c.note ? `<span class="muted">${esc(c.note)}</span>` : ""}<br><span class="muted">${c.used_by ? `已使用：<a href="?id=${c.used_by}">${esc(c.used_name || "看命盤")}</a>` : "還沒用"}</span></div></div>`).join("") || '<p class="muted">還沒有</p>'}</div>`;
+  $("#c-go").onclick = async () => { const { made } = await api("codes", { body: { count: 1, note: $("#c-note").value } }); const msg = `你的命盤解鎖碼：${made[0]}\n打開你排好的命盤頁面，在最下面輸入就能看完整解讀。還沒排的話先到 ${location.origin}/mingpan.html 排盤。`; $("#c-new").innerHTML = `<div class="note"><span class="code">${made[0]}</span><br>可以直接複製傳給客人：<textarea style="min-height:110px">${esc(msg)}</textarea></div>`; };
+}
+async function tabSet() {
+  const el = $("#tab"); const s = await api("settings");
+  el.innerHTML = `<div class="card"><h2>設定</h2>
+    <label>LINE 連結（例如 https://lin.ee/xxxx）</label><input type="text" id="s-line" value="${esc(s.line_url)}">
+    <label>解鎖說明（顯示在完整版上鎖的地方，可以寫價格）</label><textarea id="s-note" style="min-height:90px">${esc(s.price_note)}</textarea>
+    <div class="row"><div><label>全站每天免費排盤上限</label><input type="number" id="s-cap" value="${esc(s.daily_cap)}"></div><div><label>每個人每天上限</label><input type="number" id="s-ip" value="${esc(s.per_ip)}"></div></div>
+    <p class="muted">每排一次免費版大約花 NT$0.3～1 的 AI 費用；完整版大約 NT$3～6。上限是防止被亂刷。你自己登入時不受限制。</p>
+    <button class="btn block" id="s-go">存檔</button><div id="s-msg"></div></div>`;
+  $("#s-go").onclick = async () => { await api("settings", { body: { line_url: $("#s-line").value.trim(), price_note: $("#s-note").value.trim(), daily_cap: $("#s-cap").value, per_ip: $("#s-ip").value } }); $("#s-msg").innerHTML = `<div class="note">存好了</div>`; };
+}
+
+// ===== 啟動 =====
+async function route() {
+  const p = new URLSearchParams(location.search);
+  if (p.has("admin")) return viewAdmin();
+  const id = p.get("id");
+  if (id) {
+    app.innerHTML = `<div class="card"><span class="spin"></span>讀取命盤…</div>`;
+    try { viewReading(await api("get", { qs: "&id=" + encodeURIComponent(id) })); }
+    catch (e) { app.innerHTML = `<div class="err">${esc(e.message)}</div><a class="btn" href="/mingpan.html">重新排盤</a>`; }
+    return;
+  }
+  viewForm();
+}
+(async () => {
+  try { CFG = await api("config"); } catch {}
+  $("#adminbar").classList.toggle("hide", !CFG.admin);
+  route();
+})();
+window.onpopstate = route;
+</script>
+</body>
+</html>

@@ -3,9 +3,9 @@ import { env } from "./env.js";
 
 export const CATS = ["旅遊", "餐廳美食", "食譜", "日常生活", "穿搭美妝", "健身運動", "居家手作", "知識學習", "購物好物", "其他"];
 
-export async function claude(system, user, { images = [], maxTokens = 6000, timeoutMs = 150000, asJson = false } = {}) {
+export async function claude(system, user, { images = [], maxTokens = 6000, timeoutMs = 150000, asJson = false, model: modelOpt = "" } = {}) {
   const key = env("ANTHROPIC_API_KEY");
-  const model = process.env.TZ_MODEL || "claude-sonnet-5-5";
+  const model = modelOpt || process.env.TZ_MODEL || "claude-sonnet-5-5";
   const send = async (imgs) => {
     const content = [...imgs.map((u) => ({ type: "image", source: { type: "url", url: u } })), { type: "text", text: asJson ? user + "\n\n請呼叫 save_result 工具交出結果(把上面的 JSON 欄位直接當成工具的參數),不要另外打字。" : user }];
     const ctl = new AbortController();
