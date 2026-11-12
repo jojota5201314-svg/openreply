@@ -70,26 +70,34 @@ async function makeTeaser(chart) {
   return claude(SYS, user, { asJson: true, maxTokens: 1500, timeoutMs: 60000, model: process.env.MP_TEASER_MODEL || "claude-haiku-5-5" });
 }
 
-async function makeFull(chart) {
+const FULL_PARTS = (chart) => {
   const ly = chart.bazi.liunian.map((l) => `${l.year}(${l.gz})`).join("、");
-  const user = `以下是命盤:\n${chartText(chart)}\n\n請寫完整解讀,用 Markdown,依照下面 8 段,每段先寫「依據」再寫結論:
-## 1. 命盤重點
+  return [
+`## 1. 命盤重點
 八字:日主強弱(說明月令和五行數量的判斷)、格局傾向、喜用神與忌神(寫理由)。${chart.ziwei ? "紫微:命宮主星與亮度、身宮落在哪一宮、四化落點的意思。" : "(沒有時辰,紫微不排,說明這點)"}
 ## 2. 個性核心
 3 個關鍵詞,各舉一個具體生活場景。
 ## 3. 工作與錢
 適合的工作型態、賺錢方式、最容易「少賺錢」的一個習慣(講具體、講直接)。
 ## 4. 感情
-在關係裡的模式、容易卡住的地方、適合的另一半特質。
-## 5. 健康與家庭
+在關係裡的模式、容易卡住的地方、適合的另一半特質。`,
+`## 5. 健康與家庭
 需要多留意的身體方向(不做診斷)與家庭課題。
 ## 6. 未來 3 年流年
 逐年寫 ${ly}:重點機會、要避開的坑${chart.bazi.dayun.length ? ",並說明目前走的大運" : ""}。
 ## 7. 一句當頭棒喝
 ## 8. 10 年後的你寫給現在的你的一封信(300 字內,第一人稱)
-最後加一段「## 總整理」,用表格:| 優勢 | 盲點 | 今年最該做的 3 件事 |
-全文 2500 到 3500 字。`;
-  return claude(SYS, user, { maxTokens: 8000, timeoutMs: 240000 });
+## 總整理
+用表格:| 優勢 | 盲點 | 今年最該做的 3 件事 |`];
+};
+
+// 完整版拆兩半同時寫(一次寫 8 段會超過 AI 單次字數上限)
+async function makeFull(chart) {
+  const parts = FULL_PARTS(chart);
+  const texts = await Promise.all(parts.map((spec, i) => claude(SYS,
+    `以下是命盤:\n${chartText(chart)}\n\n完整解讀分成上下兩半,你這次只寫${i ? "下" : "上"}半,用 Markdown,照下面的標題,每段先寫「依據」再寫結論,不要寫開場白和結語,也不要寫其他段落:\n${spec}\n\n這一半寫 1200 到 1800 字。`,
+    { maxTokens: 16000, timeoutMs: 240000 })));
+  return texts.map((t) => t.trim()).join("\n\n");
 }
 
 const pub = (r, admin) => ({
