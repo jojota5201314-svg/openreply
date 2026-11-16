@@ -103,6 +103,16 @@ input[type=text],input[type=date],input[type=time]{width:100%;border:var(--line)
 .st .ad{font-size:13px;color:var(--muted);margin-top:2px;word-break:break-word}
 .st .act{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
 .st .act a{font-size:13px;text-decoration:none;border:2px solid var(--ink);border-radius:999px;padding:1px 10px;background:var(--mizu-l)}
+.more{margin-top:6px;font-size:13px}
+.more summary{cursor:pointer;list-style:none;display:inline-block;border:2px solid var(--ink);border-radius:999px;padding:1px 10px;background:var(--yama-l)}
+.more summary::-webkit-details-marker{display:none}
+.more[open] summary{background:var(--yama)}
+.lk{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.lk div{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.lk span{font-size:12px;color:var(--muted);min-width:34px}
+.lk a{text-decoration:none;border:2px solid var(--ink);border-radius:999px;padding:0 9px;background:var(--paper)}
+.pick{display:block;text-decoration:none;border:var(--line);border-radius:18px;padding:12px 14px;margin-top:10px;background:var(--yama-l)}
+.pick:nth-child(3n){background:var(--mizu-l)} .pick:nth-child(3n+1){background:var(--take-l)}
 .star{border:2px solid var(--ink);border-radius:999px;background:var(--paper);font-size:12px;padding:1px 10px}
 .st.must .star{background:var(--coral)}
 .mv{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;flex-wrap:wrap}
@@ -202,6 +212,31 @@ function save(){ clearTimeout(saveT); saveT=setTimeout(async()=>{
     if(["生成中","修改中","排細節"].includes(cur.status)){ toast("AI 正在改行程,等一下再存"); return; }
     const plan=cur.plan||{}; plan.site=SITE; await api("/api/tz?a=trip&id="+ID,{method:"PUT",body:{plan}}); P=plan;
   }catch(e){ toast(e.message); } },500); }
+
+// ---------- 各網站連結 ----------
+const A=(u,t)=>`<a href="${u}" target="_blank" rel="noopener">${t}</a>`;
+function region(){ const c=(T.params?.country||"")+(T.params?.region||"");
+  if(/中國|上海|深圳|廣州|北京|杭州|成都|重慶|大陸/.test(c)) return "cn";
+  if(/日本/.test(c)) return "jp"; if(/韓國/.test(c)) return "kr"; if(/台灣/.test(c)) return "tw"; return "x"; }
+function stopLinks(s){
+  const name=s.name||"", city=s.city||T.params?.region||"", q=[name,city].filter(Boolean).join(" "), R=region();
+  const food=/餐廳|小吃|甜點|咖啡|美食|酒吧/.test(s.type||"");
+  const map=[A(`https://www.google.com/maps/search/?api=1&query=${gq(s.address||q)}`,"Google 地圖")];
+  if(R==="cn") map.push(A(`https://uri.amap.com/search?keyword=${gq(name)}${city?`&city=${gq(city)}`:""}`,"高德地圖"));
+  if(R==="kr") map.push(A(`https://map.naver.com/p/search/${gq(name)}`,"Naver 地圖"));
+  const rev=[A(`https://www.google.com/search?q=${gq(q+" 評價")}`,"Google 評價")];
+  if(R==="jp" && food) rev.push(A(`https://tabelog.com/rstLst/?sk=${gq(name)}`,"Tabelog"));
+  if(R==="cn") rev.push(A(`https://www.google.com/search?q=${gq(q+" 大眾點評")}`,"大眾點評"));
+  if(R!=="cn") rev.push(A(`https://www.tripadvisor.com.tw/Search?q=${gq(q)}`,"Tripadvisor"));
+  const tag=name.replace(/[\s()（）·・\-'’&]/g,"");
+  const soc=[A(`https://www.xiaohongshu.com/search_result?keyword=${gq(q)}`,"小紅書"),A(`https://www.instagram.com/explore/tags/${gq(tag)}/`,"IG"),A(`https://www.youtube.com/results?search_query=${gq(q)}`,"YouTube"),A(`https://www.google.com/search?q=${gq(q)}`,"Google")];
+  const tix=food?[]:[A(`https://www.klook.com/zh-TW/search/result/?query=${gq(q)}`,"Klook"),A(`https://www.kkday.com/zh-tw/product/productlist?keyword=${gq(name)}`,"KKday")];
+  return `<div class="lk"><div><span>地圖</span>${map.join("")}</div><div><span>評價</span>${rev.join("")}</div><div><span>心得</span>${soc.join("")}</div>${tix.length?`<div><span>票券</span>${tix.join("")}</div>`:""}</div>`;
+}
+function hotelLinks(name,addr){ const q=[name,T.params?.region||T.params?.country].filter(Boolean).join(" ");
+  return [A(`https://www.google.com/maps/search/?api=1&query=${gq(addr||q)}`,"地圖"),A(`https://www.booking.com/searchresults.zh-tw.html?ss=${gq(q)}`,"Booking"),A(`https://www.agoda.com/zh-tw/search?textToSearch=${gq(q)}`,"Agoda"),A(`https://www.google.com/travel/hotels?q=${gq(q)}`,"Google 比價"),A(`https://tw.trip.com/hotels/list?keyword=${gq(name)}`,"Trip.com"),A(`https://www.google.com/search?q=${gq(q+" 評價")}`,"評價")].join(""); }
+let POSTS={};
+function postOf(s){ const id=s.saved_id&&String(s.saved_id).split(":")[0]; return id?POSTS[id]:null; }
 
 // ---------- 交通標籤 ----------
 function modeOf(m){ m=m||"";
@@ -331,7 +366,7 @@ function renderDay(anim){
         <div class="cd2"><div class="nm">${m?`<span class="badge">必去</span>`:""}<span>${esc(s.name)}</span>${s.type?`<span class="tp">${esc(s.type)}</span>`:""}</div>
           ${s.note?`<div class="nt">${esc(s.note)}</div>`:""}${[s.stay&&`⏱ ${s.stay}`,s.cost&&`💰 ${s.cost}`].filter(Boolean).length?`<div class="ad">${esc([s.stay&&`⏱ ${s.stay}`,s.cost&&`💰 ${s.cost}`].filter(Boolean).join("　"))}</div>`:""}
           ${s.address?`<div class="ad">📍 ${esc(s.address)}</div>`:""}
-          <div class="act"><a href="https://www.google.com/maps/search/?api=1&query=${gq(q)}" target="_blank" rel="noopener">地圖</a><button class="star" data-must="${i}" aria-pressed="${m}">${m?"★ 必去":"☆ 標必去"}</button></div></div>
+          <div class="act"><a href="https://www.google.com/maps/search/?api=1&query=${gq(q)}" target="_blank" rel="noopener">地圖</a>${postOf(s)?.url?`<a href="${esc(postOf(s).url)}" target="_blank" rel="noopener">原貼文</a>`:""}<button class="star" data-must="${i}" aria-pressed="${m}">${m?"★ 必去":"☆ 標必去"}</button></div><details class="more"><summary>更多連結 ▾</summary>${stopLinks(s)}</details></div>
         ${nx?`<div class="mv"><span class="tag ${mc}">${mi} ${esc(nx.mode||"移動")}${nx.minutes?` ${esc(nx.minutes)} 分`:""}</span>${nx.detail?`<span class="dt">${esc(nx.detail)}</span>`:""}</div>`:""}
       </div></div>`; }).join("")||`<p class="muted">這天還沒有安排</p>`}</div></div>`;
   el.querySelectorAll("[data-must]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.must, s=stops[i]; SITE.must[DAY+"|"+s.name]=!isMust(DAY,i,s); renderDay(false); save(); });
@@ -360,8 +395,8 @@ function stayHtml(){
   const country=T.params?.country||"";
   if(g.length) return g.map(s=>{ const q=s.address||s.name+" "+country;
     return `<div class="stay"><div class="small">第 ${s.from+1}${s.to>s.from?`～${s.to+1}`:""} 天晚上・${s.to-s.from+1} 晚</div><div class="n">${esc(s.name)}</div>${s.address?`<div class="small">📍 ${esc(s.address)}</div>`:""}
-      <a href="https://www.google.com/maps/search/?api=1&query=${gq(q)}" target="_blank" rel="noopener">地圖</a></div>`; }).join("");
-  if((P.hotels||[]).length) return `<p class="small muted" style="margin-top:0">還沒設定住哪一間,這是 AI 建議的區域(回小幫手可以設定):</p>`+P.hotels.map(h=>`<div class="stay"><div class="small">${esc(h.nights||"")}</div><div class="n">${esc(h.area)}</div>${h.why?`<div class="small">${esc(h.why)}</div>`:""}${(h.suggestions||[]).length?`<div class="small" style="margin-top:4px">${h.suggestions.map(x=>"・"+esc(x.name)).join("　")}</div>`:""}</div>`).join("");
+      <div>${hotelLinks(s.name,s.address)}</div></div>`; }).join("");
+  if((P.hotels||[]).length) return `<p class="small muted" style="margin-top:0">還沒設定住哪一間,這是 AI 建議的區域(回小幫手可以設定):</p>`+P.hotels.map(h=>`<div class="stay"><div class="small">${esc(h.nights||"")}</div><div class="n">${esc(h.area)}</div>${h.why?`<div class="small">${esc(h.why)}</div>`:""}${(h.suggestions||[]).map(x=>`<div class="small" style="margin-top:6px">・${esc(x.name)} <span class="muted">${esc([x.level,x.price].filter(Boolean).join(" · "))}</span><br>${hotelLinks(x.name,"")}</div>`).join("")}</div>`).join("");
   return `<p class="muted small">還沒有住宿資料,回小幫手的行程裡設定</p>`;
 }
 
@@ -371,7 +406,11 @@ function spy(){ const links=[...document.querySelectorAll(".nav a[href^='#']")];
   document.querySelectorAll("main section[id]").forEach(s=>io.observe(s)); }
 
 (async()=>{
-  if(!ID){ $("#app").innerHTML=`<div class="box load">找不到行程,請從小幫手的行程打開</div>`; return; }
+  if(!ID){ try{ const {trips}=await api("/api/tz?a=trips"); const ok=trips.filter(t=>t.status!=="失敗");
+      document.querySelector(".nav .in").innerHTML=`<a class="home" href="/tiezhi.html#trip">← 小幫手</a>`;
+      $("#app").innerHTML=`<section class="box"><div class="sec-h">${ICON.plan}<h2>選一個行程</h2></div>${ok.map(t=>`<a class="pick" href="?id=${t.id}">${esc(t.name)}${t.status!=="完成"?` <span class="small muted">${esc(t.status)}</span>`:""}</a>`).join("")||`<p class="muted">還沒有排過行程,先到小幫手的「行程」排一個</p>`}</section>`;
+    }catch(e){ $("#app").innerHTML=`<div class="box load">${esc(e.message)}</div>`; } return; }
+  api("/api/tz?a=posts").then(r=>{ (r.posts||[]).forEach(p=>POSTS[p.id]=p); if(P){ renderDay(false); } }).catch(()=>{});
   try{ T=await api("/api/tz?a=trip&id="+ID); P=T.plan||{}; ensureSite(); document.title=(P.title||T.name)+"・旅遊繪本"; render(); }
   catch(e){ $("#app").innerHTML=`<div class="box load">${esc(e.message)}</div>`; }
 })();
