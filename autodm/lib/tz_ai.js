@@ -164,3 +164,34 @@ export async function planDay(params, places, outline, i) {
   const out = await claude(SYS_TRIP, ctx + "\n\n" + SCHEMA_DAY, { maxTokens: 16000, timeoutMs: 270000, asJson: true });
   return Array.isArray(out.stops) ? out.stops : [];
 }
+
+// ---- 分段修改:先看要改哪幾天(輸出很短),再一天一天改,行程再長也不會超過 AI 一次能寫的長度 ----
+function compactPlan(plan) {
+  return (plan.days || []).map((d, i) => `第 ${i + 1} 天(${d.date || ""})${d.area || ""}・${d.theme || ""}\n` +
+    (d.stops || []).map((s) => `  ${s.time || ""} ${s.name}(${s.type || ""})${s.saved_id ? " [收藏]" : ""}`).join("\n")).join("\n") +
+    `\n住宿建議:${(plan.hotels || []).map((h) => h.area + "(" + (h.nights || "") + ")").join("、")}`;
+}
+const SCHEMA_REFINE_PLAN = `只輸出這個格式的 JSON(先決定要改哪幾天,不用寫每一站):
+{"change_days":[{"day":第幾天(數字),"how":"這天具體要怎麼改,寫清楚要加、刪、換哪些點","area":"改後主要在哪一區(沒變就空字串)","theme":"改後主題(沒變就空字串)"}],
+"title":"新的行程名稱(沒變就空字串)","overview":"新的整體說明(沒變就空字串)",
+"hotels":null 或 改過的完整住宿建議陣列,"transport":null 或 改過的交通物件,"budget":"新的預算說明(沒變就空字串)","checklist":null 或 新的出發前清單陣列}
+只列出真的需要改的天。沒改的欄位一定要填空字串或 null。`;
+export async function refinePlan(params, places, plan, instruction) {
+  const u = tripRequest(params, []) + "\n\n【我收藏的地點】\n" + (places || []).map((x) => `${x.sid}:${x.name}(${x.city || ""})`).join("\n") +
+    "\n\n【目前的行程】\n" + compactPlan(plan) + "\n\n【使用者想要這樣改】\n" + instruction + "\n\n" + SCHEMA_REFINE_PLAN;
+  return await claude(SYS_TRIP, u, { maxTokens: 8000, timeoutMs: 200000, asJson: true });
+}
+export async function refineDay(params, places, plan, i, how, instruction) {
+  const d = plan.days[i] || {};
+  const ids = new Set((d.stops || []).map((s) => s.saved_id).filter(Boolean));
+  const mine = (places || []).filter((x) => ids.has(x.sid) || (how && how.includes(x.name)));
+  const ctx = [`整趟:${plan.title || ""}(共 ${plan.days.length} 天)`, `步調:${params.pace || "適中"}`, `主要交通:${params.transport || "大眾運輸"}`,
+    `同行:${params.people || "未說明"}`, params.interests?.length ? "喜歡:" + params.interests.join("、") : "",
+    `\n現在改第 ${i + 1} 天:${d.date || ""} 主要在 ${d.area || ""},主題 ${d.theme || ""}`,
+    `這天目前的行程:\n${JSON.stringify(d.stops || [])}`,
+    `相關的收藏地點:\n${mine.map((x) => JSON.stringify({ saved_id: x.sid, name: x.name, type: x.type, city: x.city, address: x.address, note: x.note })).join("\n") || "(沒有)"}`,
+    `使用者的要求:${instruction}`, `這天要這樣改:${how || "照使用者的要求"}`,
+    "照要求修改,沒提到的站盡量保持原樣(包含 saved_id、lat、lng、address)。輸出這天完整的新行程。"].filter(Boolean).join("\n");
+  const out = await claude(SYS_TRIP, ctx + "\n\n" + SCHEMA_DAY, { maxTokens: 16000, timeoutMs: 270000, asJson: true });
+  return Array.isArray(out.stops) ? out.stops : null;
+}

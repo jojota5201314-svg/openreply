@@ -193,7 +193,7 @@ function schedulePoll(){
     try{
       await load(); nudgeStuck();
       if(!userBusy()){
-        if(S.tab==="trip" && S.trip){ const t=S.trips.find(x=>x.id===S.trip.id); if(t && (t.status!==S.trip.status || t.status==="排細節")) await openTrip(S.trip.id); }
+        if(S.tab==="trip" && S.trip){ const t=S.trips.find(x=>x.id===S.trip.id); if(t && (t.status!==S.trip.status || ["排細節","修改中"].includes(t.status))) await openTrip(S.trip.id); }
         else if(S.tab==="trip"){ /* 行程設定表單:不自動重畫,免得打的字不見 */ }
         else render();
       }
@@ -512,7 +512,7 @@ function renderItin(){
       <div class="row"><button class="btn small primary" id="edTitleSave">儲存名稱和說明</button></div></div>`:""}
     <div id="delAsk" hidden class="note row" style="justify-content:space-between">確定刪掉這個行程?<span class="row"><button class="btn small" id="delNo">不要</button><button class="btn small danger" id="delYes">刪掉</button></span></div>
     <div><h2>${esc(P.title||t.name)}</h2>${P.overview?`<p class="muted" style="margin:6px 0 0">${esc(P.overview)}</p>`:""}</div>
-    ${busy?`<div class="note">${t.status==="排細節"?`AI 正在一天一天排,目前排到第 ${Number(t.pending||0)+1} 天(共 ${days.length} 天),好了會自動更新…`:"AI 正在修改行程,好了會自動更新…"}</div>`:""}${t.error&&!busy?`<div class="note st-err">${esc(t.error)}</div>`:""}
+    ${busy?`<div class="note">${t.status==="排細節"?`AI 正在一天一天排,目前排到第 ${Number(t.pending||0)+1} 天(共 ${days.length} 天),好了會自動更新…`:(()=>{ try{ const j=JSON.parse(t.pending||""); if(j&&Array.isArray(j.q)&&j.q.length) return `AI 正在一天一天改,現在改第 ${j.q[0]+1} 天(還剩 ${j.q.length} 天),好了會自動更新…`; }catch{} return "AI 正在看要改哪幾天,好了會自動更新…"; })()}</div>`:""}${t.error&&!busy?`<div class="note st-err">${esc(t.error)}</div>`:""}
     ${!busy && days.some(x=>!(x.stops||[]).length)?`<div class="row"><button class="btn primary small" id="resumeIt">▶ 接著排還沒排好的天數</button></div>`:""}
     <div class="daytabs" id="dt">${days.map((x,i)=>`<button class="chip ${i===S.day?"on":""}" data-d="${i}">第 ${x.day||i+1} 天${x.date?" "+esc(String(x.date).slice(5)):""}</button>`).join("")}</div>
     <div id="map" class="map"></div>

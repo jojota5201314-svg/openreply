@@ -2,7 +2,7 @@
 import { waitUntil } from "@vercel/functions";
 import { tq } from "./tz_db.js";
 import { fetchPost, platformOf } from "./tz_fetch.js";
-import { analyze, refineTrip, planOutline, planDay } from "./tz_ai.js";
+import { analyze, planOutline, planDay, refinePlan, refineDay } from "./tz_ai.js";
 import { baseUrl } from "./env.js";
 
 // 叫下一步:只負責把請求送出去,不等它做完(等的話會一層套一層,超過 5 分鐘就被切斷)
@@ -80,17 +80,49 @@ export async function runTrip(id) {
       return last ? { done: true } : { next: true };
     }
     if (t.status === "修改中") {
-      const { site, ...forAi } = t.plan || {}; // 繪本網站的打勾、航班資料不用給 AI
-      const plan = await refineTrip(t.params || {}, t.places || [], forAi, t.pending || "");
-      if (!plan?.days) throw new Error("AI 回傳的行程格式不對,再試一次");
-      if (t.plan?.stays) plan.stays = t.plan.stays; // 自己設定的住宿要留著
-      if (site) plan.site = site; // 繪本網站的航班、清單也留著
-      await tq("UPDATE tz_trips SET status = '完成', error = '', plan = $2, name = $3, pending = '' WHERE id = $1", [id, JSON.stringify(plan), plan.title || t.name]);
+      // pending:第一步是使用者打的字;之後是 JSON {ins, q:[還要改的天], how:{天:怎麼改}}
+      let job = null; try { const j = JSON.parse(t.pending || ""); if (j && Array.isArray(j.q)) job = j; } catch {}
+      const plan = t.plan || {};
+      if (!job) {
+        const ins = t.pending || "";
+        const { site, stays, ...forAi } = plan; // 繪本網站的打勾、自己設定的住宿不用給 AI
+        const r = await refinePlan(t.params || {}, t.places || [], forAi, ins);
+        if (!r || !Array.isArray(r.change_days)) throw new Error("AI 回傳的格式不對,再試一次");
+        if (r.title) plan.title = r.title;
+        if (r.overview) plan.overview = r.overview;
+        if (r.budget) plan.budget = r.budget;
+        if (Array.isArray(r.hotels) && r.hotels.length) plan.hotels = r.hotels;
+        if (r.transport && typeof r.transport === "object") plan.transport = r.transport;
+        if (Array.isArray(r.checklist) && r.checklist.length) plan.checklist = r.checklist;
+        const how = {}, q = [];
+        for (const c of r.change_days) {
+          const i = Number(c.day) - 1; if (!plan.days?.[i] || q.includes(i)) continue;
+          if (c.area) plan.days[i].area = c.area; if (c.theme) plan.days[i].theme = c.theme;
+          how[i] = c.how || ""; q.push(i);
+        }
+        q.sort((a, b) => a - b);
+        const done = !q.length;
+        await tq("UPDATE tz_trips SET status = $2, error = '', plan = $3, name = $4, pending = $5 WHERE id = $1",
+          [id, done ? "完成" : "修改中", JSON.stringify(plan), plan.title || t.name, done ? "" : JSON.stringify({ ins, q, how })]);
+        await release();
+        return done ? { done: true } : { next: true };
+      }
+      const i = job.q[0];
+      let stops = null;
+      try { stops = await refineDay(t.params || {}, t.places || [], plan, i, job.how?.[i], job.ins); }
+      catch (e) { stops = await refineDay(t.params || {}, t.places || [], plan, i, job.how?.[i], job.ins); } // 失敗再試一次
+      if (stops && stops.length) plan.days[i].stops = stops;
+      job.q.shift();
+      const last = !job.q.length;
+      await tq("UPDATE tz_trips SET status = $2, plan = $3, pending = $4 WHERE id = $1",
+        [id, last ? "完成" : "修改中", JSON.stringify(plan), last ? "" : JSON.stringify(job)]);
+      await release();
+      return last ? { done: true } : { next: true };
     }
   } catch (e) {
     const failed = t.status === "排細節" ? "完成" : (t.plan ? "完成" : "失敗");
     await tq("UPDATE tz_trips SET status = $2, error = $3, pending = '' WHERE id = $1", [id, failed,
-      (t.status === "排細節" ? `第 ${Number(t.pending || 0) + 1} 天之後沒排好:` : "") + e.message]);
+      (t.status === "排細節" ? `第 ${Number(t.pending || 0) + 1} 天之後沒排好:` : t.status === "修改中" ? "修改沒完成:" : "") + e.message]);
   }
   await release();
   return { done: true };
