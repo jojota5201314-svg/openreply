@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>旅遊繪本</title>
+<meta name="theme-color" content="#FFFCF6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="/tiezhi-icon-192.png">
+<link rel="apple-touch-icon" href="/tiezhi-icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Huninn&display=swap">
+<style>
+/* 日系繪本風:和紙白底、墨灰粗線框、大圓角、平塗四色 */
+:root{
+  --paper:#FFFCF6; --ink:#3E3A39; --coral:#F2A497; --yama:#F6D27A; --mizu:#A8D3E6; --take:#B9DAA5;
+  --coral-l:#FBE3DE; --yama-l:#FCF1D3; --mizu-l:#E4F2F8; --take-l:#E6F1DE; --muted:#7A7472;
+  --line:3px solid var(--ink); --r:22px; --f:"Huninn","PingFang TC","Microsoft JhengHei",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:calc(66px + env(safe-area-inset-top,0px))}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.65;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:3px dashed var(--coral);outline-offset:3px}
+h1,h2,h3{margin:0;line-height:1.3;font-weight:400;text-wrap:balance}
+[hidden]{display:none!important}
+
+/* 頂端固定選單 */
+.nav{position:fixed;top:0;left:0;right:0;z-index:20;background:var(--paper);border-bottom:var(--line);
+  padding:calc(8px + env(safe-area-inset-top,0px)) max(10px,env(safe-area-inset-right,0px)) 8px max(10px,env(safe-area-inset-left,0px))}
+.nav .in{max-width:760px;margin:0 auto;display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:none}
+.nav .in::-webkit-scrollbar{display:none}
+.nav a{flex:0 0 auto;text-decoration:none;border:var(--line);border-radius:999px;padding:4px 13px;font-size:14px;background:var(--paper)}
+.nav a.on{background:var(--yama)}
+.nav a.home{background:var(--mizu-l)}
+
+.wrap{max-width:760px;margin:0 auto;padding:calc(76px + env(safe-area-inset-top,0px)) max(14px,env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:22px}
+.box{background:var(--paper);border:var(--line);border-radius:var(--r);padding:18px}
+.sec-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sec-h h2{font-size:22px}
+.sec-h .ico{width:40px;height:40px;flex:0 0 40px}
+.muted{color:var(--muted)} .small{font-size:14px}
+.btn{border:var(--line);background:var(--paper);border-radius:999px;padding:6px 16px;font-size:15px}
+.btn.y{background:var(--yama)} .btn.c{background:var(--coral)} .btn.s{padding:2px 12px;font-size:13px}
+.btn:active{transform:translateY(2px)}
+input[type=text],input[type=date],input[type=time]{width:100%;border:var(--line);border-radius:14px;background:#fff;padding:7px 11px;min-width:0}
+
+/* 首頁 */
+.hero{padding:0;overflow:hidden;background:var(--mizu-l)}
+.hero svg{display:block;width:100%;height:auto}
+.hero .txt{background:var(--paper);border-top:var(--line);padding:16px 18px 18px;text-align:center}
+.hero h1{font-size:28px}
+.hero .ov{margin:8px 0 0;font-size:14px;color:var(--muted);text-align:left}
+.cd{display:flex;justify-content:center;gap:8px;margin-top:14px}
+.cd div{border:var(--line);border-radius:16px;min-width:64px;padding:6px 4px;background:var(--yama-l)}
+.cd div:nth-child(2){background:var(--coral-l)} .cd div:nth-child(3){background:var(--take-l)}
+.cd b{display:block;font-size:26px;font-weight:400;font-variant-numeric:tabular-nums;line-height:1.2}
+.cd span{font-size:12px}
+.cd-msg{margin-top:12px;font-size:15px}
+
+/* 航班 */
+.flights{display:grid;gap:14px}
+@media (min-width:640px){.flights{grid-template-columns:1fr 1fr}}
+.fl{border:var(--line);border-radius:18px;overflow:hidden}
+.fl .hd{display:flex;justify-content:space-between;align-items:center;padding:6px 14px;border-bottom:var(--line);background:var(--coral)}
+.fl.back .hd{background:var(--mizu)}
+.fl .bd{padding:12px 14px}
+.fl .rt{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;text-align:center}
+.fl .ap{font-size:24px;line-height:1.1}
+.fl .tm{font-size:14px;color:var(--muted)}
+.fl .meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:14px;justify-content:center}
+.fl .empty{text-align:center;color:var(--muted);font-size:14px;padding:8px 0}
+.fform{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.fform label{font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.fform .full{grid-column:1/-1}
+
+/* 每日行程 */
+.days{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:none}
+.days::-webkit-scrollbar{display:none}
+.days button{flex:0 0 auto;border:var(--line);border-radius:18px;background:var(--paper);padding:6px 14px;text-align:center;line-height:1.25}
+.days button b{display:block;font-weight:400;font-size:17px}
+.days button span{font-size:12px;color:var(--muted)}
+.days button.on{background:var(--yama);transform:translateY(-3px)}
+.days button.on span{color:var(--ink)}
+.dayhead{border:var(--line);border-radius:18px;background:var(--take-l);padding:10px 14px;margin:4px 0 16px}
+.dayhead h3{font-size:19px}
+.tl{position:relative;padding-left:4px}
+.st{display:grid;grid-template-columns:58px 1fr;gap:10px;position:relative}
+.st::before{content:"";position:absolute;left:28px;top:44px;bottom:-6px;border-left:3px dashed var(--ink);opacity:.45}
+.st:last-child::before{display:none}
+.st .t{display:flex;flex-direction:column;align-items:center;gap:4px}
+.st .t b{font-weight:400;font-size:15px;font-variant-numeric:tabular-nums}
+.st .dot{width:22px;height:22px;border-radius:50%;border:var(--line);background:var(--mizu)}
+.st.must .dot{background:var(--coral)}
+.st .cd2{border:var(--line);border-radius:18px;padding:10px 13px;margin-bottom:8px;background:#fff;min-width:0}
+.st.must .cd2{background:var(--coral-l)}
+.st .nm{font-size:17px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.st .tp{font-size:12px;border:2px solid var(--ink);border-radius:999px;padding:0 8px;background:var(--paper)}
+.badge{font-size:12px;border:2px solid var(--ink);border-radius:999px;padding:0 9px;background:var(--coral)}
+.st .nt{font-size:14px;margin-top:4px}
+.st .ad{font-size:13px;color:var(--muted);margin-top:2px;word-break:break-word}
+.st .act{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.st .act a{font-size:13px;text-decoration:none;border:2px solid var(--ink);border-radius:999px;padding:1px 10px;background:var(--mizu-l)}
+.star{border:2px solid var(--ink);border-radius:999px;background:var(--paper);font-size:12px;padding:1px 10px}
+.st.must .star{background:var(--coral)}
+.mv{display:flex;align-items:center;gap:8px;margin:0 0 12px;font-size:13px;flex-wrap:wrap}
+.tag{display:inline-flex;align-items:center;gap:4px;border:2px solid var(--ink);border-radius:999px;padding:1px 10px;font-size:13px;background:var(--paper)}
+.tag.walk{background:var(--take)} .tag.metro{background:var(--mizu)} .tag.bus{background:var(--yama)}
+.tag.taxi{background:var(--coral-l)} .tag.rail{background:var(--coral)} .tag.boat{background:var(--mizu-l)}
+.legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.mv .dt{color:var(--muted)}
+.bounce{animation:bounce .55s cubic-bezier(.3,1.6,.5,1)}
+@keyframes bounce{0%{transform:translateY(18px) scale(.97);opacity:0}60%{transform:translateY(-6px) scale(1.01);opacity:1}100%{transform:none}}
+
+/* 清單 */
+.lists{display:grid;gap:16px}
+.ck{list-style:none;margin:0;padding:0}
+.ck li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:2px dashed color-mix(in srgb,var(--ink) 25%,transparent)}
+.ck li:last-child{border-bottom:0}
+.ck input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:0 0 24px;width:24px;height:24px;border:var(--line);border-radius:8px;background:#fff;margin:1px 0 0;display:grid;place-items:center}
+.ck input[type=checkbox]:checked{background:var(--take)}
+.ck input[type=checkbox]:checked::after{content:"";width:7px;height:12px;border:solid var(--ink);border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.ck label{flex:1;min-width:0;cursor:pointer}
+.ck li.done label{text-decoration:line-through;color:var(--muted)}
+.ck .rm{border:0;background:none;color:var(--muted);font-size:16px;padding:0 4px}
+.addrow{display:flex;gap:8px;margin-top:10px}
+.addrow .btn{flex:0 0 auto;white-space:nowrap}
+.prog{height:14px;border:var(--line);border-radius:999px;overflow:hidden;background:#fff;margin:2px 0 10px}
+.prog i{display:block;height:100%;background:var(--take);border-right:3px solid var(--ink);transition:width .3s}
+.prog i[style*="width:0%"]{border-right:0}
+.grp{margin-top:8px;font-size:14px;display:inline-block;border:2px solid var(--ink);border-radius:999px;padding:0 10px;background:var(--yama-l)}
+
+/* 住宿 */
+.stay{border:var(--line);border-radius:18px;padding:12px 14px;background:var(--yama-l);margin-top:10px}
+.stay:first-of-type{margin-top:0}
+.stay .n{font-size:18px}
+.stay a{font-size:13px;text-decoration:none;border:2px solid var(--ink);border-radius:999px;padding:1px 10px;background:var(--paper);display:inline-block;margin:6px 6px 0 0}
+
+.foot{text-align:center;font-size:13px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;background:var(--paper);border:var(--line);border-radius:999px;padding:7px 18px;font-size:14px;max-width:90%}
+.load{text-align:center;padding:60px 10px}
+
+/* 插圖輕輕動 */
+@media (prefers-reduced-motion:no-preference){
+  .cloud{animation:drift 9s ease-in-out infinite alternate}
+  .cloud.c2{animation-duration:12s;animation-delay:-4s}
+  .plane{animation:fly 4s ease-in-out infinite}
+  .sunray{transform-origin:center;transform-box:fill-box;animation:spin 24s linear infinite}
+  .bob{animation:bob 3.2s ease-in-out infinite}
+  .wave{animation:drift 5s ease-in-out infinite alternate}
+  .ride{animation:ride 6s ease-in-out infinite alternate}
+  .days button,.btn,.star{transition:transform .2s,background .2s}
+}
+@keyframes drift{from{transform:translateX(-10px)}to{transform:translateX(12px)}}
+@keyframes fly{0%,100%{transform:translate(0,0) rotate(-3deg)}50%{transform:translate(8px,-7px) rotate(2deg)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes ride{from{transform:translateX(-16px)}to{transform:translateX(16px)}}
+@media (prefers-reduced-motion:reduce){.bounce{animation:none}*{animation:none!important;transition:none!important}}
+</style></head><body>
+<nav class="nav" aria-label="頁面選單"><div class="in">
+  <a class="home" href="/tiezhi.html#trip">← 小幫手</a>
+  <a href="#top">首頁</a><a href="#flight">航班</a><a href="#plan">每日行程</a><a href="#todo">待辦</a><a href="#stay">住宿</a><a href="#pre">出發前</a><a href="#pack">行李</a>
+</div></nav>
+<main class="wrap" id="app"><div class="box load">讀取行程中…</div></main>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const gq=s=>encodeURIComponent(s||"");
+const RM=matchMedia("(prefers-reduced-motion: reduce)");
+const ID=Number(new URLSearchParams(location.search).get("id"));
+let T=null, P=null, SITE=null, DAY=0, FEDIT=null, timer=null, saveT=null;
+
+function toast(m){ const d=document.createElement("div"); d.className="toast"; d.textContent=m; document.body.appendChild(d); setTimeout(()=>d.remove(),2200); }
+async function api(path,opt={}){
+  const o={method:opt.method||"GET",headers:{}};
+  if(opt.body!==undefined){ o.headers["Content-Type"]="application/json"; o.body=JSON.stringify(opt.body); }
+  const r=await fetch(path,o); const d=await r.json().catch(()=>({}));
+  if(r.status===401){ location.href="/tiezhi.html#trip"; throw new Error("請先登入"); }
+  if(!r.ok) throw new Error(d.error||("出錯了 "+r.status));
+  return d;
+}
+
+// ---------- 預設資料 ----------
+const PACK=[["證件","護照"],["證件","機票／電子登機證"],["證件","訂房確認"],["證件","旅平險資料"],
+  ["錢","外幣現金"],["錢","信用卡"],["電子","手機＋充電線"],["電子","行動電源"],["電子","萬用轉接頭"],["電子","網卡／eSIM"],
+  ["衣物","換洗衣物"],["衣物","睡衣"],["衣物","外套"],["衣物","好走的鞋"],["盥洗","牙刷牙膏"],["盥洗","保養品"],["盥洗","化妝品"],
+  ["其他","常備藥"],["其他","雨傘"],["其他","購物袋"]];
+function ensureSite(){
+  SITE=P.site||{};
+  SITE.flights ||= [{dir:"去程"},{dir:"回程"}];
+  SITE.todo ||= [];
+  SITE.pre ||= (P.checklist||[]).map(t=>({t,done:false}));
+  SITE.pack ||= PACK.map(([c,t])=>({c,t,done:false}));
+  SITE.must ||= {};
+}
+// 只存 site,存之前抓最新版,避免蓋掉 AI 或另一台裝置改的行程內容
+function save(){ clearTimeout(saveT); saveT=setTimeout(async()=>{
+  try{ const cur=await api("/api/tz?a=trip&id="+ID);
+    if(["生成中","修改中","排細節"].includes(cur.status)){ toast("AI 正在改行程,等一下再存"); return; }
+    const plan=cur.plan||{}; plan.site=SITE; await api("/api/tz?a=trip&id="+ID,{method:"PUT",body:{plan}}); P=plan;
+  }catch(e){ toast(e.message); } },500); }
+
+// ---------- 交通標籤 ----------
+function modeOf(m){ m=m||"";
+  if(/步行|走路/.test(m)) return ["walk","🚶"];
+  if(/地鐵|捷運|輕軌|電車|metro|MRT/i.test(m)) return ["metro","🚇"];
+  if(/公車|巴士|客運/.test(m)) return ["bus","🚌"];
+  if(/計程車|開車|Uber|滴滴|叫車/i.test(m)) return ["taxi","🚕"];
+  if(/火車|高鐵|新幹線|鐵路|JR/.test(m)) return ["rail","🚄"];
+  if(/渡輪|船|渡/.test(m)) return ["boat","⛴"];
+  if(/飛機|航班/.test(m)) return ["rail","✈"];
+  return ["metro","➜"]; }
+
+// ---------- 插圖 ----------
+const K='stroke="#3E3A39" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+const cloud=(x,y,s,c)=>`<g class="cloud ${c||""}"><path transform="translate(${x} ${y}) scale(${s})" d="M10 30 Q0 30 2 21 Q4 13 13 15 Q16 4 28 6 Q38 0 44 11 Q56 9 56 21 Q60 30 50 30 Z" fill="#fff" ${K}/></g>`;
+const plane=`<g class="plane"><g transform="translate(58 40)"><path d="M0 14 L44 10 Q54 10 54 15 Q54 20 44 20 L0 18 Z" fill="#fff" ${K}/><path d="M20 12 L12 0 L20 0 L32 11 Z M20 19 L14 30 L22 30 L32 19 Z" fill="#F2A497" ${K}/><path d="M2 14 L-4 5 L3 5 L9 13" fill="#A8D3E6" ${K}/><circle cx="42" cy="14" r="2" fill="#3E3A39"/><circle cx="35" cy="14" r="2" fill="#3E3A39"/></g></g>`;
+const sun=`<g class="sunray"><circle cx="312" cy="46" r="30" fill="#FCF1D3"/></g><circle cx="312" cy="46" r="18" fill="#F6D27A" ${K}/>`;
+const hills=`<path d="M-5 200 Q60 150 130 180 Q200 140 270 172 Q320 150 365 168 L365 230 L-5 230 Z" fill="#B9DAA5" ${K}/>`;
+const train=`<g class="ride"><g transform="translate(118 196)"><rect x="0" y="0" width="124" height="22" rx="10" fill="#fff" ${K}/><path d="M124 4 Q140 6 140 18 L124 22 Z" fill="#F2A497" ${K}/>${[10,36,62,88].map(x=>`<rect x="${x}" y="5" width="18" height="9" rx="3" fill="#A8D3E6" stroke="#3E3A39" stroke-width="2.5"/>`).join("")}</g></g><path d="M-5 220 L365 220" ${K}/>`;
+const sea=`<path class="wave" d="M-20 200 Q0 192 20 200 T60 200 T100 200 T140 200 T180 200 T220 200 T260 200 T300 200 T340 200 T380 200 L380 230 L-20 230 Z" fill="#A8D3E6" ${K}/>`;
+const LAND={
+  "日本":()=>`<path d="M70 196 L150 84 L230 196 Z" fill="#A8D3E6" ${K}/><path d="M126 118 L150 84 L174 118 L163 112 L150 122 L137 112 Z" fill="#fff" ${K}/>`+hills+
+    `<g class="bob"><path d="M246 128 Q280 120 314 128 L310 138 Q280 132 250 138 Z" fill="#F2A497" ${K}/><rect x="252" y="146" width="56" height="7" fill="#F2A497" ${K}/><path d="M260 136 L262 200 M300 136 L298 200" stroke="#3E3A39" stroke-width="9" stroke-linecap="round"/><path d="M260 136 L262 198 M300 136 L298 198" stroke="#F2A497" stroke-width="4" stroke-linecap="round"/></g>`+train,
+  "韓國":()=>hills+`<g class="bob"><rect x="120" y="150" width="120" height="44" fill="#FFFCF6" ${K}/>${[132,160,200,228].map(x=>`<rect x="${x-4}" y="150" width="8" height="44" fill="#F2A497" ${K}/>`).join("")}<path d="M100 152 Q180 132 260 152 L248 132 Q180 118 112 132 Z" fill="#B9DAA5" ${K}/><path d="M136 120 Q180 104 224 120 L214 104 Q180 94 146 104 Z" fill="#A8D3E6" ${K}/><rect x="150" y="120" width="60" height="12" fill="#F6D27A" ${K}/></g>`+train,
+  "泰國":()=>hills+`<g class="bob"><path d="M150 194 L150 160 Q150 128 180 112 Q210 128 210 160 L210 194 Z" fill="#F6D27A" ${K}/><path d="M172 114 L180 60 L188 114" fill="#F6D27A" ${K}/><rect x="140" y="186" width="80" height="10" fill="#F2A497" ${K}/><path d="M166 150 L194 150 M162 166 L198 166" ${K}/></g>`+sea,
+  "台灣":()=>hills+`<g class="bob">${[0,1,2,3,4,5].map(i=>`<path d="M${160+i*2} ${190-i*20} L${200-i*2} ${190-i*20} L${196-i*2} ${172-i*20} L${164+i*2} ${172-i*20} Z" fill="${i%2?"#B9DAA5":"#A8D3E6"}" ${K}/>`).join("")}<path d="M180 70 L180 46" ${K}/></g>`+train,
+  "城市":()=>`<g class="bob">${[[92,120,30,"#A8D3E6"],[126,90,26,"#F6D27A"],[156,60,30,"#F2A497"],[190,100,28,"#B9DAA5"],[222,128,30,"#A8D3E6"],[256,112,26,"#F6D27A"]].map(([x,y,w,c])=>`<rect x="${x}" y="${y}" width="${w}" height="${196-y}" rx="4" fill="${c}" ${K}/>`+[...Array(Math.floor((186-y)/18))].map((_,j)=>`<rect x="${x+8}" y="${y+10+j*18}" width="${w-16}" height="6" rx="2" fill="#fff" stroke="#3E3A39" stroke-width="2"/>`).join("")).join("")}<path d="M171 60 L171 40" ${K}/></g>`+sea+
+    `<g class="ride"><g transform="translate(40 184)"><path d="M0 8 L56 8 L48 20 L8 20 Z" fill="#F2A497" ${K}/><path d="M24 8 L24 -18 L42 4 Z" fill="#fff" ${K}/></g></g>`,
+  "其他":()=>`<path d="M60 196 L120 110 L180 196 Z" fill="#A8D3E6" ${K}/><path d="M150 196 L215 96 L280 196 Z" fill="#B9DAA5" ${K}/>`+hills+
+    `<g class="bob"><rect x="230" y="158" width="44" height="36" fill="#fff" ${K}/><path d="M222 160 L252 132 L282 160 Z" fill="#F2A497" ${K}/><rect x="246" y="174" width="12" height="20" fill="#F6D27A" ${K}/></g>`+train,
+};
+function landKey(c,r){ c=c||""; const s=c+(r||"");
+  if(/日本|東京|大阪|京都|北海道|沖繩|福岡/.test(s)) return "日本";
+  if(/韓國|首爾|釜山|濟州/.test(s)) return "韓國";
+  if(/泰國|曼谷|清邁|普吉/.test(s)) return "泰國";
+  if(/台灣/.test(c)) return "台灣";
+  if(/中國|香港|澳門|新加坡|上海|深圳|廣州|北京|杭州|成都|重慶/.test(s)) return "城市";
+  return "其他"; }
+function heroSvg(){ const k=landKey(T.params?.country,T.params?.region);
+  return `<svg viewBox="0 0 360 230" role="img" aria-label="${esc(T.params?.country||"旅行")}的插圖"><rect width="360" height="230" fill="#E4F2F8"/>${sun}${cloud(20,70,.9)}${cloud(220,90,.7,"c2")}${plane}${LAND[k]()}</svg>`; }
+const ICON={
+  flight:`<svg class="ico" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#F2A497" ${K}/><path d="M9 21 L30 18 Q34 18 34 21 Q34 24 30 24 L9 23 Z M18 19 L14 11 L18 11 L24 18 M18 23 L15 29 L19 29 L24 23" fill="#fff" stroke="#3E3A39" stroke-width="2.5" stroke-linejoin="round"/></svg>`,
+  plan:`<svg class="ico" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#F6D27A" ${K}/><path d="M20 9 Q12 9 12 17 Q12 23 20 31 Q28 23 28 17 Q28 9 20 9 Z" fill="#fff" stroke="#3E3A39" stroke-width="2.5"/><circle cx="20" cy="17" r="3.5" fill="#F2A497" stroke="#3E3A39" stroke-width="2"/></svg>`,
+  todo:`<svg class="ico" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#B9DAA5" ${K}/><rect x="11" y="10" width="18" height="21" rx="3" fill="#fff" stroke="#3E3A39" stroke-width="2.5"/><path d="M15 17 L17 19 L21 15 M15 25 L25 25" stroke="#3E3A39" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>`,
+  stay:`<svg class="ico" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#A8D3E6" ${K}/><path d="M10 20 L20 11 L30 20 L30 30 L10 30 Z" fill="#fff" stroke="#3E3A39" stroke-width="2.5" stroke-linejoin="round"/><rect x="17" y="22" width="6" height="8" fill="#F6D27A" stroke="#3E3A39" stroke-width="2"/></svg>`,
+  pre:`<svg class="ico" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#F2A497" ${K}/><rect x="12" y="11" width="16" height="20" rx="3" fill="#fff" stroke="#3E3A39" stroke-width="2.5"/><circle cx="20" cy="18" r="3" fill="#A8D3E6" stroke="#3E3A39" stroke-width="2"/><path d="M15 26 L25 26" stroke="#3E3A39" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+  pack:`<svg class="ico" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#F6D27A" ${K}/><rect x="11" y="14" width="18" height="16" rx="4" fill="#fff" stroke="#3E3A39" stroke-width="2.5"/><path d="M16 14 L16 10 L24 10 L24 14 M11 21 L29 21" stroke="#3E3A39" stroke-width="2.5" fill="none"/></svg>`,
+};
+
+// ---------- 倒數 ----------
+function departAt(){
+  const f=SITE.flights.find(x=>x.dir==="去程")||{};
+  const d=f.date||P.days?.[0]?.date||T.params?.start_date||"";
+  if(!/^\d{4}-\d{2}-\d{2}/.test(d)) return null;
+  return new Date(`${d.slice(0,10)}T${/^\d{2}:\d{2}$/.test(f.dep||"")?f.dep:"00:00"}`);
+}
+function tick(){ const el=$("#cd"); if(!el) return; const at=departAt();
+  if(!at){ el.innerHTML=`<div class="cd-msg muted">在下方「航班」填上去程日期,這裡就會開始倒數</div>`; return; }
+  const ms=at-Date.now(), n=(P.days||[]).length||1;
+  if(ms>0){ const D=Math.floor(ms/864e5), H=Math.floor(ms%864e5/36e5), M=Math.floor(ms%36e5/6e4);
+    el.innerHTML=`<div class="cd"><div><b>${D}</b><span>天</span></div><div><b>${H}</b><span>小時</span></div><div><b>${M}</b><span>分</span></div></div><div class="cd-msg">距離出發還有</div>`; }
+  else { const k=Math.floor(-ms/864e5)+1; el.innerHTML=`<div class="cd-msg">${k<=n?`旅行中・第 ${k} 天,玩得開心!`:"旅行結束啦,歡迎回家 🏠"}</div>`; }
+}
+
+// ---------- 畫面 ----------
+function render(){
+  const days=P.days||[];
+  $("#app").innerHTML=`
+  <section class="box hero" id="top">${heroSvg()}<div class="txt"><h1>${esc(P.title||T.name)}</h1>
+    <div class="small muted">${esc([T.params?.country,T.params?.region].filter(Boolean).join("・"))}${days.length?`・${days.length} 天`:""}</div>
+    <div id="cd"></div>${P.overview?`<p class="ov">${esc(P.overview)}</p>`:""}</div></section>
+
+  <section class="box" id="flight"><div class="sec-h">${ICON.flight}<h2>航班</h2></div><div class="flights" id="flights"></div></section>
+
+  <section class="box" id="plan"><div class="sec-h">${ICON.plan}<h2>每日行程</h2></div>
+    ${days.length?`<div class="days" id="days" role="tablist">${days.map((d,i)=>`<button role="tab" aria-selected="${i===DAY}" class="${i===DAY?"on":""}" data-d="${i}"><b>Day ${d.day||i+1}</b><span>${d.date?esc(fmtDate(d.date)):esc(d.area||"")}</span></button>`).join("")}</div><div id="day"></div>
+    <div class="legend small">${[["walk","🚶","步行"],["metro","🚇","地鐵"],["bus","🚌","公車"],["taxi","🚕","計程車／開車"],["rail","🚄","火車／高鐵"],["boat","⛴","渡輪"]].map(([c,i,t])=>`<span class="tag ${c}">${i} ${t}</span>`).join("")}</div>`
+    :`<p class="muted">這個行程還沒排好</p>`}</section>
+
+  <section class="box" id="todo"><div class="sec-h">${ICON.todo}<h2>旅途待辦</h2></div><div id="L-todo"></div></section>
+  <section class="box" id="stay"><div class="sec-h">${ICON.stay}<h2>住宿資訊</h2></div>${stayHtml()}</section>
+  <section class="box" id="pre"><div class="sec-h">${ICON.pre}<h2>出發前清單</h2></div><div id="L-pre"></div></section>
+  <section class="box" id="pack"><div class="sec-h">${ICON.pack}<h2>行李清單</h2></div><div id="L-pack"></div></section>
+  <p class="foot">打勾的進度會自動存,手機和電腦同步<br>行程內容要改,回小幫手的「編輯行程」</p>`;
+  renderFlights(); renderDay(false); ["todo","pre","pack"].forEach(renderList); tick();
+  clearInterval(timer); timer=setInterval(tick,30000);
+  $("#days")?.addEventListener("click",e=>{ const b=e.target.closest("[data-d]"); if(!b) return; DAY=+b.dataset.d;
+    document.querySelectorAll("#days button").forEach((x,i)=>{ x.classList.toggle("on",i===DAY); x.setAttribute("aria-selected",i===DAY); });
+    renderDay(true); b.scrollIntoView({block:"nearest",inline:"center",behavior:RM.matches?"auto":"smooth"}); });
+  spy();
+}
+function fmtDate(d){ const m=String(d).match(/^\d{4}-(\d{2})-(\d{2})/); if(!m) return d; const w="日一二三四五六"[new Date(d.slice(0,10)+"T00:00").getDay()]; return `${+m[1]}/${+m[2]}(${w})`; }
+
+function renderFlights(){
+  $("#flights").innerHTML=SITE.flights.map((f,i)=>{
+    const back=f.dir==="回程"?"back":"";
+    if(FEDIT===i) return `<div class="fl ${back}"><div class="hd"><span>${esc(f.dir)}</span></div><div class="bd"><div class="fform">
+      <label class="full">航空公司＋班號<input type="text" id="f-no" value="${esc(f.no||"")}" placeholder="例:長榮 BR198"></label>
+      <label>出發機場<input type="text" id="f-from" value="${esc(f.from||"")}" placeholder="TPE 桃園"></label>
+      <label>抵達機場<input type="text" id="f-to" value="${esc(f.to||"")}" placeholder="NRT 成田"></label>
+      <label class="full">日期<input type="date" id="f-date" value="${esc(f.date||"")}"></label>
+      <label>起飛<input type="time" id="f-dep" value="${esc(f.dep||"")}"></label>
+      <label>抵達<input type="time" id="f-arr" value="${esc(f.arr||"")}"></label>
+      <label>航廈／登機門<input type="text" id="f-term" value="${esc(f.term||"")}" placeholder="第二航廈"></label>
+      <label>訂位代號<input type="text" id="f-pnr" value="${esc(f.pnr||"")}" placeholder="ABC123"></label>
+      <div class="full" style="display:flex;gap:8px;margin-top:4px"><button class="btn y" id="f-save">儲存</button><button class="btn" id="f-cancel">取消</button></div></div></div></div>`;
+    const has=f.no||f.from||f.to||f.date;
+    return `<div class="fl ${back}"><div class="hd"><span>${esc(f.dir)}${f.no?`・${esc(f.no)}`:""}</span><button class="btn s" data-fe="${i}">${has?"改":"填寫"}</button></div><div class="bd">
+      ${has?`<div class="rt"><div><div class="ap">${esc(f.from||"—")}</div><div class="tm">${esc(f.dep||"")}</div></div>
+        <svg width="52" height="28" viewBox="0 0 52 28" aria-hidden="true"><path d="M2 20 Q26 2 50 20" fill="none" stroke="#3E3A39" stroke-width="2.5" stroke-dasharray="4 4"/><g class="bob"><path d="M18 12 L34 10 Q38 10 38 12.5 Q38 15 34 15 L18 14 Z" fill="#fff" stroke="#3E3A39" stroke-width="2"/></g></svg>
+        <div><div class="ap">${esc(f.to||"—")}</div><div class="tm">${esc(f.arr||"")}</div></div></div>
+        <div class="meta">${f.date?`<span>📅 ${esc(fmtDate(f.date))}</span>`:""}${f.term?`<span>🚪 ${esc(f.term)}</span>`:""}${f.pnr?`<span>🎫 ${esc(f.pnr)}</span>`:""}</div>`
+      :`<div class="empty">還沒填${esc(f.dir)}航班</div>`}</div></div>`; }).join("");
+  $("#flights").querySelectorAll("[data-fe]").forEach(b=>b.onclick=()=>{ FEDIT=+b.dataset.fe; renderFlights(); $("#f-no").focus(); });
+  $("#f-cancel") && ($("#f-cancel").onclick=()=>{ FEDIT=null; renderFlights(); });
+  $("#f-save") && ($("#f-save").onclick=()=>{ const f=SITE.flights[FEDIT];
+    ["no","from","to","date","dep","arr","term","pnr"].forEach(k=>f[k]=$("#f-"+k).value.trim()); FEDIT=null; renderFlights(); tick(); save(); toast("航班存好了"); });
+}
+
+function isMust(di,i,s){ const k=di+"|"+s.name; return k in SITE.must ? SITE.must[k] : !!s.saved_id; }
+function renderDay(anim){
+  const el=$("#day"); if(!el) return; const d=(P.days||[])[DAY]||{}; const stops=d.stops||[]; const country=T.params?.country||"";
+  el.innerHTML=`<div class="${anim&&!RM.matches?"bounce":""}"><div class="dayhead"><h3>${esc(d.area||`第 ${DAY+1} 天`)}</h3>${d.theme?`<div class="small">${esc(d.theme)}</div>`:""}</div>
+    <div class="tl">${stops.map((s,i)=>{ const m=isMust(DAY,i,s); const q=s.address||[s.name,s.city,country].filter(Boolean).join(" ");
+      const nx=s.next; const [mc,mi]=nx?modeOf(nx.mode):[];
+      return `<div class="st ${m?"must":""}"><div class="t"><b>${esc(s.time||"")}</b><span class="dot"></span></div><div>
+        <div class="cd2"><div class="nm">${m?`<span class="badge">必去</span>`:""}<span>${esc(s.name)}</span>${s.type?`<span class="tp">${esc(s.type)}</span>`:""}</div>
+          ${s.note?`<div class="nt">${esc(s.note)}</div>`:""}${[s.stay&&`⏱ ${s.stay}`,s.cost&&`💰 ${s.cost}`].filter(Boolean).length?`<div class="ad">${esc([s.stay&&`⏱ ${s.stay}`,s.cost&&`💰 ${s.cost}`].filter(Boolean).join("　"))}</div>`:""}
+          ${s.address?`<div class="ad">📍 ${esc(s.address)}</div>`:""}
+          <div class="act"><a href="https://www.google.com/maps/search/?api=1&query=${gq(q)}" target="_blank" rel="noopener">地圖</a><button class="star" data-must="${i}" aria-pressed="${m}">${m?"★ 必去":"☆ 標必去"}</button></div></div>
+        ${nx?`<div class="mv"><span class="tag ${mc}">${mi} ${esc(nx.mode||"移動")}${nx.minutes?` ${esc(nx.minutes)} 分`:""}</span>${nx.detail?`<span class="dt">${esc(nx.detail)}</span>`:""}</div>`:""}
+      </div></div>`; }).join("")||`<p class="muted">這天還沒有安排</p>`}</div></div>`;
+  el.querySelectorAll("[data-must]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.must, s=stops[i]; SITE.must[DAY+"|"+s.name]=!isMust(DAY,i,s); renderDay(false); save(); });
+}
+
+const LISTS={todo:{ph:"例:買 Suica 卡、預約餐廳"},pre:{ph:"例:換外幣、辦網卡"},pack:{ph:"例:自拍棒"}};
+function renderList(k){
+  const arr=SITE[k], el=$("#L-"+k); const done=arr.filter(x=>x.done).length; const pct=arr.length?Math.round(done/arr.length*100):0;
+  let html=`<div class="small">${done} / ${arr.length} 完成</div><div class="prog" aria-hidden="true"><i style="width:${pct}%"></i></div>`;
+  const row=(x,i)=>`<li class="${x.done?"done":""}"><input type="checkbox" id="${k}${i}" data-i="${i}" ${x.done?"checked":""}><label for="${k}${i}">${esc(x.t)}</label><button class="rm" data-rm="${i}" aria-label="刪掉">✕</button></li>`;
+  if(k==="pack"){ const groups=[...new Set(arr.map(x=>x.c||"其他"))];
+    html+=groups.map(g=>`<span class="grp">${esc(g)}</span><ul class="ck">${arr.map((x,i)=>(x.c||"其他")===g?row(x,i):"").join("")}</ul>`).join(""); }
+  else html+=arr.length?`<ul class="ck">${arr.map(row).join("")}</ul>`:`<p class="muted small">還沒有項目,在下面加一個</p>`;
+  html+=`<div class="addrow"><input type="text" id="add-${k}" placeholder="${LISTS[k].ph}"><button class="btn y" id="addb-${k}">加入</button></div>`;
+  el.innerHTML=html;
+  el.querySelectorAll("input[type=checkbox]").forEach(c=>c.onchange=()=>{ arr[+c.dataset.i].done=c.checked; renderList(k); save(); });
+  el.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ arr.splice(+b.dataset.rm,1); renderList(k); save(); });
+  const add=()=>{ const v=$("#add-"+k).value.trim(); if(!v) return; arr.push(k==="pack"?{c:"其他",t:v,done:false}:{t:v,done:false}); renderList(k); save(); $("#add-"+k).focus(); };
+  $("#addb-"+k).onclick=add; $("#add-"+k).onkeydown=e=>{ if(e.key==="Enter"&&!e.isComposing) add(); };
+}
+
+function stayHtml(){
+  const n=(P.days||[]).length, st=P.stays||{}, g=[];
+  for(let j=0;j<n;j++){ const s=st[j]; if(!s) continue; const last=g[g.length-1];
+    if(last && last.name===s.name && last.to===j-1) last.to=j; else g.push({...s,from:j,to:j}); }
+  const country=T.params?.country||"";
+  if(g.length) return g.map(s=>{ const q=s.address||s.name+" "+country;
+    return `<div class="stay"><div class="small">第 ${s.from+1}${s.to>s.from?`～${s.to+1}`:""} 天晚上・${s.to-s.from+1} 晚</div><div class="n">${esc(s.name)}</div>${s.address?`<div class="small">📍 ${esc(s.address)}</div>`:""}
+      <a href="https://www.google.com/maps/search/?api=1&query=${gq(q)}" target="_blank" rel="noopener">地圖</a></div>`; }).join("");
+  if((P.hotels||[]).length) return `<p class="small muted" style="margin-top:0">還沒設定住哪一間,這是 AI 建議的區域(回小幫手可以設定):</p>`+P.hotels.map(h=>`<div class="stay"><div class="small">${esc(h.nights||"")}</div><div class="n">${esc(h.area)}</div>${h.why?`<div class="small">${esc(h.why)}</div>`:""}${(h.suggestions||[]).length?`<div class="small" style="margin-top:4px">${h.suggestions.map(x=>"・"+esc(x.name)).join("　")}</div>`:""}</div>`).join("");
+  return `<p class="muted small">還沒有住宿資料,回小幫手的行程裡設定</p>`;
+}
+
+// 捲動時選單跟著亮
+function spy(){ const links=[...document.querySelectorAll(".nav a[href^='#']")];
+  const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ links.forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)); } }),{rootMargin:"-45% 0px -50% 0px"});
+  document.querySelectorAll("main section[id]").forEach(s=>io.observe(s)); }
+
+(async()=>{
+  if(!ID){ $("#app").innerHTML=`<div class="box load">找不到行程,請從小幫手的行程打開</div>`; return; }
+  try{ T=await api("/api/tz?a=trip&id="+ID); P=T.plan||{}; ensureSite(); document.title=(P.title||T.name)+"・旅遊繪本"; render(); }
+  catch(e){ $("#app").innerHTML=`<div class="box load">${esc(e.message)}</div>`; }
+})();
+document.addEventListener("visibilitychange",async()=>{ if(document.hidden||!T||FEDIT!==null||document.activeElement?.tagName==="INPUT") return;
+  try{ const t=await api("/api/tz?a=trip&id="+ID); T=t; P=t.plan||{}; ensureSite(); const y=scrollY; render(); scrollTo(0,y); }catch{} });
+</script>
+</body></html>

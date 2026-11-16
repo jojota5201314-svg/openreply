@@ -80,9 +80,11 @@ export async function runTrip(id) {
       return last ? { done: true } : { next: true };
     }
     if (t.status === "修改中") {
-      const plan = await refineTrip(t.params || {}, t.places || [], t.plan, t.pending || "");
+      const { site, ...forAi } = t.plan || {}; // 繪本網站的打勾、航班資料不用給 AI
+      const plan = await refineTrip(t.params || {}, t.places || [], forAi, t.pending || "");
       if (!plan?.days) throw new Error("AI 回傳的行程格式不對,再試一次");
       if (t.plan?.stays) plan.stays = t.plan.stays; // 自己設定的住宿要留著
+      if (site) plan.site = site; // 繪本網站的航班、清單也留著
       await tq("UPDATE tz_trips SET status = '完成', error = '', plan = $2, name = $3, pending = '' WHERE id = $1", [id, JSON.stringify(plan), plan.title || t.name]);
     }
   } catch (e) {

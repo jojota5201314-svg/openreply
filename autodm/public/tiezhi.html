@@ -493,7 +493,7 @@ function stopForm(s){
     <div class="row"><button class="btn primary small" id="sfSave">儲存這一站</button><button class="btn small" id="sfCancel">取消</button></div>
   </div></div>`;
 }
-async function saveTrip(){ try{ await api("/api/tz?a=trip&id="+S.trip.id,{method:"PUT",body:{plan:S.trip.plan,name:S.trip.name}}); }catch(e){ toast(e.message); } }
+async function saveTrip(){ try{ const {site,...plan}=S.trip.plan||{}; await api("/api/tz?a=trip&id="+S.trip.id,{method:"PUT",body:{plan,name:S.trip.name}}); }catch(e){ toast(e.message); } }
 function renderItin(){
   const t=S.trip;
   if(!t.plan){
@@ -505,7 +505,7 @@ function renderItin(){
   const P=t.plan, days=P.days||[]; if(S.day>=days.length) S.day=0;
   const d=days[S.day]||{stops:[]}; const country=t.params?.country||""; const stay=(P.stays||{})[S.day]||null; const route=dayRouteLink(d,country,stay); const busy=["生成中","修改中","排細節"].includes(t.status);
   $("#main").innerHTML=`<div class="stack">
-    <div class="row" style="justify-content:space-between"><button class="btn small" id="back">← 回行程列表</button><span class="row"><button class="btn small ${S.editMode?"primary":""}" id="editIt">${S.editMode?"✓ 編輯完成":"✏️ 編輯行程"}</button><button class="btn small" id="cpIt">複製成文字</button><button class="btn small danger" id="delIt">刪掉</button></span></div>
+    <div class="row" style="justify-content:space-between"><button class="btn small" id="back">← 回行程列表</button><span class="row"><button class="btn small ${S.editMode?"primary":""}" id="editIt">${S.editMode?"✓ 編輯完成":"✏️ 編輯行程"}</button><a class="btn small primary" href="/tiezhi-trip.html?id=${t.id}" style="text-decoration:none">🎨 繪本網站</a><button class="btn small" id="cpIt">複製成文字</button><button class="btn small danger" id="delIt">刪掉</button></span></div>
     ${S.editMode?`<div class="note small">編輯中:每一站都可以改內容、調順序、移到別天或刪掉,也可以自己加一站。改完會自動存。</div>
       <div class="card stack" style="gap:6px"><label class="f" for="edTitle" style="margin:0">行程名稱</label><input type="text" id="edTitle" value="${esc(P.title||t.name)}">
       <label class="f" for="edOverview" style="margin:0">整體說明</label><textarea id="edOverview" style="min-height:60px">${esc(P.overview||"")}</textarea>

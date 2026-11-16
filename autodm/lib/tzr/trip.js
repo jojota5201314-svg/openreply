@@ -12,6 +12,10 @@ export async function GET(request) {
 export async function PUT(request) {
   if (!isAdmin(request)) return unauthorized();
   const { plan, name } = await readJson(request);
+  if (plan && !plan.site) { // 沒帶 site 的存檔(主畫面編輯)不要蓋掉繪本網站的航班和清單
+    const [cur] = await tq("SELECT plan FROM tz_trips WHERE id = $1", [idOf(request)]);
+    if (cur?.plan?.site) plan.site = cur.plan.site;
+  }
   await tq("UPDATE tz_trips SET plan = COALESCE($2, plan), name = COALESCE($3, name) WHERE id = $1",
     [idOf(request), plan ? JSON.stringify(plan) : null, name || null]);
   return json({ ok: true });
