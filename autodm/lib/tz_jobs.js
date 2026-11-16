@@ -121,8 +121,11 @@ export async function runTrip(id) {
     }
   } catch (e) {
     const failed = t.status === "排細節" ? "完成" : (t.plan ? "完成" : "失敗");
-    await tq("UPDATE tz_trips SET status = $2, error = $3, pending = '' WHERE id = $1", [id, failed,
-      (t.status === "排細節" ? `第 ${Number(t.pending || 0) + 1} 天之後沒排好:` : t.status === "修改中" ? "修改沒完成:" : "") + e.message]);
+    // 修改失敗時把使用者打的要求留在 pending,讓「繼續」按鈕可以直接重送
+    let keep = "";
+    if (t.status === "修改中") { try { const j = JSON.parse(t.pending || ""); keep = j?.ins || ""; } catch { keep = t.pending || ""; } }
+    await tq("UPDATE tz_trips SET status = $2, error = $3, pending = $4 WHERE id = $1", [id, failed,
+      (t.status === "排細節" ? `第 ${Number(t.pending || 0) + 1} 天之後沒排好:` : t.status === "修改中" ? "修改沒完成:" : "") + e.message, String(keep).slice(0, 1000)]);
   }
   await release();
   return { done: true };
