@@ -221,7 +221,7 @@ function renderAdd(){
   const recent=S.posts.filter(p=>p.status==="完成").slice(0,4);
   $("#main").innerHTML=`<div class="stack">
   <div class="card stack">
-    <div><h2>收進一篇貼文</h2><p class="small muted" style="margin:4px 0 0">貼上 IG、TikTok、抖音、小紅書、臉書的連結就好。也可以一次貼好幾個連結。</p></div>
+    <div><h2>收進一篇貼文</h2><p class="small muted" style="margin:4px 0 0">貼上 IG、TikTok、抖音、小紅書、臉書,或一般網站文章的連結就好。也可以一次貼好幾個連結。</p></div>
     <textarea id="inText" placeholder="例如:https://www.instagram.com/reel/…&#10;抖音、小紅書的分享文字整段貼上也可以"></textarea>
     <div class="row"><button class="btn primary" id="go">開始整理</button><span class="small muted">大約 30 秒~1 分鐘,可以先去做別的事</span></div>
   </div>
@@ -644,7 +644,7 @@ async function renderSet(){
     <div class="card small"><h3 style="margin-bottom:6px">狀態</h3>
       <div>抓貼文服務(Apify):${s.apify?"✅ 已設定":"❌ 還沒設定"}</div>
       <div>AI 整理(Claude):${s.ai?"✅ 已設定":"❌ 還沒設定 —— 到 Vercel 加 ANTHROPIC_API_KEY"}</div></div>
-    <div class="row" style="justify-content:space-between"><button class="btn small" id="logout">登出</button><span class="small muted">版本 11/06 17:30</span></div>
+    <div class="row" style="justify-content:space-between"><button class="btn small" id="logout">登出</button><span class="small muted">版本 11/17 15:20</span></div>
   </div>`;
   $("#cpUrl").onclick=()=>copy(s.url);
   $("#rot").onclick=async()=>{ const r=await api("/api/tz?a=share",{method:"POST",body:{rotate:true}}).catch(e=>toast(e.message)); if(r){ s.url=r.url; toast("換好了,記得改捷徑裡的網址"); } };

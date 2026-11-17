@@ -8,7 +8,7 @@ export function platformOf(url) {
   if (u.includes("tiktok.com")) return "TikTok";
   if (u.includes("xiaohongshu.com") || u.includes("xhslink")) return "小紅書";
   if (u.includes("facebook.com") || u.includes("fb.watch") || u.includes("fb.com")) return "臉書";
-  return "";
+  return /^https?:\/\//.test(u) ? "網頁" : "";
 }
 
 export function findUrl(text) {
@@ -67,9 +67,39 @@ async function fetchFacebook(url) {
   return fix(r);
 }
 
+// 一般網站:直接讀網頁上的標題和文章內容
+function pageText(html) {
+  let h = html.replace(/<!--[\s\S]*?-->/g, " ").replace(/<(script|style|noscript|svg|iframe|template)[\s\S]*?<\/\1>/gi, " ");
+  const main = h.match(/<article[\s\S]*?<\/article>/i)?.[0] || h.match(/<main[\s\S]*?<\/main>/i)?.[0] || h.match(/<body[\s\S]*?<\/body>/i)?.[0] || h;
+  return decodeHtml(main.replace(/<(nav|header|footer|aside|form)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<br\s*\/?>|<\/(p|div|li|h[1-6]|tr)>/gi, "\n").replace(/<[^>]+>/g, " "))
+    .replace(/[ \t\u00a0]+/g, " ").replace(/\n\s*\n+/g, "\n").trim();
+}
+async function fetchWebPage(url) {
+  let r;
+  try {
+    r = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(25000),
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; JojoTiezhi/1.0; +https://jojo-openreply.vercel.app)", "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.5", Accept: "text/html,application/xhtml+xml" } });
+  } catch (e) { return { ok: false, platform: "網頁", error: "打不開這個網站(" + (e.name === "TimeoutError" ? "太久沒回應" : e.message) + "),可以把文章內容複製貼上" }; }
+  if (!r.ok) return { ok: false, platform: "網頁", error: `這個網站不讓程式讀取(${r.status}),請把文章內容複製,跟連結一起貼上` };
+  const type = r.headers.get("content-type") || "";
+  if (!/html|text/.test(type)) return { ok: false, platform: "網頁", error: "這個連結不是網頁(可能是檔案或圖片)" };
+  const html = (await r.text()).slice(0, 2_000_000);
+  const title = meta(html, "og:title") || decodeHtml((html.match(/<title[^>]*>([^<]*)<\/title>/i) || [])[1] || "").trim();
+  const desc = meta(html, "og:description") || meta(html, "description");
+  const body = pageText(html);
+  const img = meta(html, "og:image");
+  const site = meta(html, "og:site_name") || new URL(r.url || url).hostname.replace(/^www\./, "");
+  const text = [desc, body].filter(Boolean).join("\n\n").slice(0, 15000);
+  const ok = text.replace(/\s/g, "").length > 80;
+  return { ok, platform: "網頁", post: { platform: "網頁", author: site, title, text, transcript: "", location: "", images: img && /^https?:/.test(img) ? [img] : [], is_video: false },
+    error: ok ? "" : "這個網頁讀不到文章內容(可能要登入或是用程式產生的),請把內容複製貼上" };
+}
+
 export async function fetchPost(url) {
   const platform = platformOf(url);
-  if (!ACTORS[platform]) return { ok: false, platform, error: "這個連結不是 IG、TikTok、抖音、小紅書或臉書的貼文" };
+  if (platform === "網頁") return fetchWebPage(url);
+  if (!ACTORS[platform]) return { ok: false, platform, error: "這個連結看不懂,請確認是完整的網址" };
   if (platform === "臉書") return fetchFacebook(url);
   const first = await runActor(platform, url);
   if (!first.ok && platform === "小紅書" && !/401|402|403/.test(first.error || "")) {
