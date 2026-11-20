@@ -4,13 +4,13 @@ export class MetaError extends Error {
   constructor(message, code) { super(message); this.code = code; }
 }
 
-async function call(url, { method = "GET", token, body, form } = {}) {
+async function call(url, { method = "GET", token, body, form, timeoutMs } = {}) {
   const headers = {};
   if (token) headers.Authorization = `Bearer ${token}`;
   let payload;
   if (body) { headers["Content-Type"] = "application/json"; payload = JSON.stringify(body); }
   if (form) { headers["Content-Type"] = "application/x-www-form-urlencoded"; payload = new URLSearchParams(form).toString(); }
-  const res = await fetch(url, { method, headers, body: payload });
+  const res = await fetch(url, { method, headers, body: payload, signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined });
   let data = {};
   try { data = await res.json(); } catch { /* empty */ }
   if (!res.ok || data.error) {
@@ -52,11 +52,11 @@ export async function refresh(token) {
   return { token: d.access_token, expiresIn: d.expires_in ?? 5184000 };
 }
 
-export async function me(token) {
+export async function me(token, { timeoutMs } = {}) {
   const u = new URL(`${graphBase()}/me`);
   u.searchParams.set("fields", "id,user_id,username");
   u.searchParams.set("access_token", token);
-  const d = await call(u.toString());
+  const d = await call(u.toString(), { timeoutMs });
   return { igId: String(d.user_id ?? d.id), username: d.username };
 }
 
