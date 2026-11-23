@@ -25,7 +25,11 @@ export async function claude(system, user, { images = [], maxTokens = 6000, time
   let res;
   try { res = await send(images); }
   catch (e) { throw new Error(e.name === "AbortError" ? "AI 想太久了,再試一次" : "連不到 AI:" + e.message); }
-  if (!res.ok && images.length && res.status === 400) res = await send([]); // 圖片讀不了就只用文字
+  if (!res.ok && images.length && res.status === 400) { // 有圖片讀不了:先拿掉網址圖(封面),留下影片截圖;還不行才只用文字
+    const local = images.filter((u) => typeof u !== "string");
+    if (local.length && local.length < images.length) res = await send(local);
+    if (!res.ok && res.status === 400) res = await send([]);
+  }
   if (!res.ok) {
     const m = res.j?.error?.message || "";
     if (res.status === 401) throw new Error("AI 鑰匙不對(Vercel 的 ANTHROPIC_API_KEY)");
