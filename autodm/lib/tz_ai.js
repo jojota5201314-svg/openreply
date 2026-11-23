@@ -65,6 +65,7 @@ const SYS_ANALYZE = `你是社群貼文整理助手。使用者收藏了 IG、Ti
 - 一般網站的內容可能夾雜選單、廣告、推薦文章,只整理主要那一篇文章。
 - 影片畫面上的字常常有店名、地址、價錢、食材份量和步驟,要跟文案一起整理進去;文案和影片內容不一樣時,兩邊都收。
 - 只寫貼文裡真的有的內容,不要自己編店名、份量或步驟;真的缺少的就留空或寫「貼文沒寫」。
+- 做菜影片常常沒有字幕:這時要仔細看每張截圖,畫面上看得出來的食材(例:倒糖、加鮮奶油、放奶油、撒鹽)和動作順序,也要列進 ingredients 和 steps,qty 填 null、note 寫「畫面看到,份量沒寫」。只有完全看不出來才留空。
 - 只輸出 JSON,不要任何其他文字。`;
 
 const SCHEMA_ANALYZE = `請輸出這個格式的 JSON:
@@ -90,7 +91,7 @@ export async function analyze(post) {
   if (r.location) parts.push("【貼文標的地點】" + r.location);
   let imgs = (r.images || []).slice(0, 3);
   let frames = [];
-  if (r.video_url) { try { frames = await videoFrames(r.video_url, r.duration, 8); } catch (e) { console.error("frames", e.message); } }
+  if (r.video_url) { try { frames = await videoFrames(r.video_url, r.duration, 12); } catch (e) { console.error("frames", e.message); } }
   if (frames.length) {
     imgs = [...imgs.slice(0, 1), ...frames.map((b64) => ({ b64 }))];
     parts.push(`【附上 ${imgs.length} 張圖:第 1 張是封面,其餘是影片從頭到尾依序截下來的畫面。請把畫面上的字幕、字卡、店名、價錢、食材、步驟都讀出來一起整理】`);
