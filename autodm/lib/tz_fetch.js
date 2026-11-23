@@ -48,6 +48,8 @@ export function normalize(platform, item) {
       return Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x : x?.text || "")).filter(Boolean).join("\n") : typeof v === "string" ? v : ""; })(),
     location: pick(it.locationName, it.ipLocation, it.location?.name),
     images: imgs.slice(0, 8),
+    video_url: pick(it.videoUrl, it.video_url, it.mediaUrls?.[0], it.video?.playAddr, typeof it.video === "string" ? it.video : ""),
+    duration: Number(it.videoDuration || it.videoMeta?.duration || it.duration || 0) || 0,
     is_video: Boolean(it.videoUrl || it.videoMeta || it.video || it.type === "Video" || it.transcript),
   };
 }
@@ -119,7 +121,7 @@ export async function fetchPost(url) {
   if (platform === "網頁") return fetchWebPage(url);
   if (!ACTORS[platform]) return { ok: false, platform, error: "這個連結看不懂,請確認是完整的網址" };
   if (platform === "臉書") return fetchFacebook(url);
-  if (platform === "IG" && /\/(reels?|tv)\//.test(url)) return fetchIgReel(url);
+
   const first = await runActor(platform, url);
   if (!first.ok && platform === "小紅書" && !/401|402|403/.test(first.error || "")) {
     const again = await runActor(platform, url);

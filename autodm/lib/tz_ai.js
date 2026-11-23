@@ -1,5 +1,6 @@
 // 叫 Claude 分類、整理食譜、排行程
 import { env } from "./env.js";
+import { videoFrames } from "./tz_frames.js";
 
 export const CATS = ["旅遊", "餐廳美食", "食譜", "日常生活", "穿搭美妝", "健身運動", "居家手作", "知識學習", "購物好物", "其他"];
 
@@ -7,7 +8,7 @@ export async function claude(system, user, { images = [], maxTokens = 6000, time
   const key = env("ANTHROPIC_API_KEY");
   const model = modelOpt || process.env.TZ_MODEL || "claude-sonnet-5-5";
   const send = async (imgs) => {
-    const content = [...imgs.map((u) => ({ type: "image", source: { type: "url", url: u } })), { type: "text", text: asJson ? user + "\n\n請呼叫 save_result 工具交出結果(把上面的 JSON 欄位直接當成工具的參數),不要另外打字。" : user }];
+    const content = [...imgs.map((u) => (typeof u === "string" ? { type: "image", source: { type: "url", url: u } } : { type: "image", source: { type: "base64", media_type: "image/jpeg", data: u.b64 } })), { type: "text", text: asJson ? user + "\n\n請呼叫 save_result 工具交出結果(把上面的 JSON 欄位直接當成工具的參數),不要另外打字。" : user }];
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), timeoutMs);
     try {
@@ -86,8 +87,13 @@ export async function analyze(post) {
   if (r.text) parts.push("【貼文文案】\n" + r.text.slice(0, 8000));
   if (r.transcript) parts.push("【影片內容:講的話、畫面上的字】\n" + r.transcript.slice(0, 12000));
   if (r.location) parts.push("【貼文標的地點】" + r.location);
-  const imgs = (r.images || []).slice(0, 3);
-  if (imgs.length) parts.push(`【附上 ${imgs.length} 張貼文的圖片/封面,上面的字也要讀】`);
+  let imgs = (r.images || []).slice(0, 3);
+  let frames = [];
+  if (r.video_url) { try { frames = await videoFrames(r.video_url, r.duration, 8); } catch (e) { console.error("frames", e.message); } }
+  if (frames.length) {
+    imgs = [...imgs.slice(0, 1), ...frames.map((b64) => ({ b64 }))];
+    parts.push(`【附上 ${imgs.length} 張圖:第 1 張是封面,其餘是影片從頭到尾依序截下來的畫面。請把畫面上的字幕、字卡、店名、價錢、食材、步驟都讀出來一起整理】`);
+  } else if (imgs.length) parts.push(`【附上 ${imgs.length} 張貼文的圖片/封面,上面的字也要讀】`);
   const out = await claude(SYS_ANALYZE, parts.join("\n\n") + "\n\n" + SCHEMA_ANALYZE, { images: imgs, maxTokens: 5000, asJson: true });
   if (!CATS.includes(out.category)) out.category = "其他";
   out.places = Array.isArray(out.places) ? out.places.slice(0, 40) : [];
