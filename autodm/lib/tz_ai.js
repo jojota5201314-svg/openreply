@@ -61,6 +61,7 @@ const SYS_ANALYZE = `你是社群貼文整理助手。使用者收藏了 IG、Ti
 - 一律用繁體中文、台灣用語輸出(簡體字要轉成繁體)。店名、地名保留原本寫法,外文可以在後面括號加中文。
 - 逐字稿是機器辨識的,可能有錯字或只是背景音樂歌詞,沒有意義就忽略。
 - 一般網站的內容可能夾雜選單、廣告、推薦文章,只整理主要那一篇文章。
+- 影片畫面上的字常常有店名、地址、價錢、食材份量和步驟,要跟文案一起整理進去;文案和影片內容不一樣時,兩邊都收。
 - 只寫貼文裡真的有的內容,不要自己編店名、份量或步驟;真的缺少的就留空或寫「貼文沒寫」。
 - 只輸出 JSON,不要任何其他文字。`;
 
@@ -83,7 +84,7 @@ export async function analyze(post) {
   if (post.user_text) parts.push("【使用者貼上的文字】\n" + post.user_text.slice(0, 6000));
   if (r.title) parts.push("【標題】\n" + r.title);
   if (r.text) parts.push("【貼文文案】\n" + r.text.slice(0, 8000));
-  if (r.transcript) parts.push("【影片講話的逐字稿】\n" + r.transcript.slice(0, 10000));
+  if (r.transcript) parts.push("【影片內容:講的話、畫面上的字】\n" + r.transcript.slice(0, 12000));
   if (r.location) parts.push("【貼文標的地點】" + r.location);
   const imgs = (r.images || []).slice(0, 3);
   if (imgs.length) parts.push(`【附上 ${imgs.length} 張貼文的圖片/封面,上面的字也要讀】`);

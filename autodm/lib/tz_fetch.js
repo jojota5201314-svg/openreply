@@ -21,6 +21,7 @@ const ACTORS = {
   TikTok: { id: "clockworks~tiktok-scraper", input: (url) => ({ postURLs: [url], shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadSubtitles: false }) },
   抖音: { id: "thirdwatch~douyin-scraper", input: (url) => ({ urls: [url], maxResults: 1 }) },
   小紅書: { id: "zen-studio~rednote-note-detail-scraper", input: (url) => ({ noteUrls: [url], downloadVideos: false, downloadImages: false }) },
+  IG影片文字: { id: "tubetext~instagram-reels-transcript", input: (url) => ({ urls: [url], includeOnScreenText: true, maxReelsPerProfile: 1 }) },
   臉書: { id: "apify~facebook-posts-scraper", input: (url) => ({ startUrls: [{ url }], resultsLimit: 1 }) },
   臉書影片: { id: "alpha-scraper~facebook-reels-details-scraper-pro", input: (url) => ({ startUrls: [{ url }] }) },
 };
@@ -43,6 +44,8 @@ export function normalize(platform, item) {
     text: pick(typeof it.caption === "string" ? it.caption : "", it.text, it.desc, typeof it.description === "string" ? it.description : "", it.message,
       it.video?.caption, it.video?.description, typeof it.post === "string" ? it.post : it.post?.text, it.post?.caption),
     transcript: pick(it.transcript, typeof it.subtitles === "string" ? it.subtitles : ""),
+    onscreen: (() => { const k = Object.keys(it).find((x) => /screen/i.test(x)); const v = k ? it[k] : "";
+      return Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x : x?.text || "")).filter(Boolean).join("\n") : typeof v === "string" ? v : ""; })(),
     location: pick(it.locationName, it.ipLocation, it.location?.name),
     images: imgs.slice(0, 8),
     is_video: Boolean(it.videoUrl || it.videoMeta || it.video || it.type === "Video" || it.transcript),
@@ -96,11 +99,27 @@ async function fetchWebPage(url) {
     error: ok ? "" : "這個網頁讀不到文章內容(可能要登入或是用程式產生的),請把內容複製貼上" };
 }
 
+// IG Reels:文案用一般抓取,影片裡講的話和畫面上的字用轉文字服務,兩個一起跑
+async function fetchIgReel(url) {
+  const [base, tr] = await Promise.all([runActor("IG", url), runActor("IG影片文字", url).catch((e) => ({ ok: false, error: e.message }))]);
+  const p = base.post || { platform: "IG", author: "", title: "", text: "", transcript: "", location: "", images: [], is_video: true };
+  const t = tr.post || {};
+  p.platform = "IG";
+  p.author = p.author || t.author || "";
+  p.text = p.text || t.text || "";
+  p.transcript = [t.transcript ? "【影片裡講的話】\n" + t.transcript : "", t.onscreen ? "【影片畫面上的字】\n" + t.onscreen : ""].filter(Boolean).join("\n\n");
+  p.is_video = true;
+  const ok = Boolean(p.text || p.transcript);
+  return { ok, platform: "IG", post: p, transcript_note: tr.ok ? "" : (tr.error || ""), raw_keys: tr.raw_keys,
+    error: ok ? "" : (base.error || tr.error || "抓不到這篇 Reels") };
+}
+
 export async function fetchPost(url) {
   const platform = platformOf(url);
   if (platform === "網頁") return fetchWebPage(url);
   if (!ACTORS[platform]) return { ok: false, platform, error: "這個連結看不懂,請確認是完整的網址" };
   if (platform === "臉書") return fetchFacebook(url);
+  if (platform === "IG" && /\/(reels?|tv)\//.test(url)) return fetchIgReel(url);
   const first = await runActor(platform, url);
   if (!first.ok && platform === "小紅書" && !/401|402|403/.test(first.error || "")) {
     const again = await runActor(platform, url);
