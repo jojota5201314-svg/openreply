@@ -96,6 +96,7 @@ export async function analyze(post) {
   } else if (imgs.length) parts.push(`【附上 ${imgs.length} 張貼文的圖片/封面,上面的字也要讀】`);
   const out = await claude(SYS_ANALYZE, parts.join("\n\n") + "\n\n" + SCHEMA_ANALYZE, { images: imgs, maxTokens: 5000, asJson: true });
   if (!CATS.includes(out.category)) out.category = "其他";
+  out.frames_read = frames.length;
   out.places = Array.isArray(out.places) ? out.places.slice(0, 40) : [];
   out.tags = Array.isArray(out.tags) ? out.tags.slice(0, 8) : [];
   out.key_points = Array.isArray(out.key_points) ? out.key_points.slice(0, 30) : [];
