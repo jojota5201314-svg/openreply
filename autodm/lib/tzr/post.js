@@ -8,6 +8,10 @@ export async function GET(request) {
   if (!isAdmin(request)) return unauthorized();
   const [p] = await tq("SELECT * FROM tz_posts WHERE id = $1", [idOf(request)]);
   if (!p) return json({ error: "找不到" }, 404);
+  if (new URL(request.url).searchParams.get("frames") && p.raw?.video_url) {
+    const { videoFrames } = await import("../tz_frames.js");
+    try { return json({ frames: await videoFrames(p.raw.video_url, p.raw.duration, 12) }); } catch (e) { return json({ error: e.message }); }
+  }
   return json({ ...p, data: fixRecipe(p.data), created: new Date(p.created_at).getTime() });
 }
 export async function PATCH(request) {
