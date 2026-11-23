@@ -1,5 +1,5 @@
 import { json, readJson, isAdmin, unauthorized } from "../auth.js";
-import { tq } from "../tz_db.js";
+import { tq, fixRecipe } from "../tz_db.js";
 import { kick } from "../tz_jobs.js";
 
 const idOf = (request) => Number(new URL(request.url).searchParams.get("id"));
@@ -8,7 +8,7 @@ export async function GET(request) {
   if (!isAdmin(request)) return unauthorized();
   const [p] = await tq("SELECT * FROM tz_posts WHERE id = $1", [idOf(request)]);
   if (!p) return json({ error: "找不到" }, 404);
-  return json({ ...p, created: new Date(p.created_at).getTime() });
+  return json({ ...p, data: fixRecipe(p.data), created: new Date(p.created_at).getTime() });
 }
 export async function PATCH(request) {
   if (!isAdmin(request)) return unauthorized();

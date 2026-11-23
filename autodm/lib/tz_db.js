@@ -54,9 +54,35 @@ export async function shareKey(rotate = false) {
 }
 
 export function slimPost(p) {
-  const d = p.data || {};
+  const d = fixRecipe(p.data || {});
   return { id: p.id, created: new Date(p.created_at).getTime(), url: p.url, platform: p.platform, status: p.status, error: p.error,
     title: p.title, category: p.category, subcategory: p.subcategory, country: p.country, region: p.region, thumb: p.thumb,
     summary: d.summary || "", tags: d.tags || [], has_recipe: Boolean(d.recipe), recipe_type: d.recipe?.type || "",
     dish: d.recipe?.dish || "", n_ing: (d.recipe?.ingredients || []).length, places: (d.places || []).map((x) => ({ ...x })) };
+}
+
+// AI 偶爾把 recipe 寫成被截斷的字串、或把 steps/tips 放到外層 → 修回正常物件
+function tryParse(s) { try { return JSON.parse(s); } catch { return null; } }
+export function fixRecipe(d) {
+  if (!d || typeof d !== "object") return d;
+  let r = d.recipe;
+  if (typeof r === "string") {
+    const s = r.trim();
+    r = tryParse(s) || tryParse(s + "}") || tryParse(s + "]}") || tryParse(s + "\"}") || tryParse(s + "\"]}") || null;
+    if (!r) { const m = s.match(/^(.*\])/s); r = m ? tryParse(m[1] + "}") : null; }
+  }
+  const keys = ["dish", "type", "servings", "time", "difficulty", "ingredients", "steps", "tips"];
+  const loose = keys.some((k) => d[k] != null);
+  if (!r && !loose) return d;
+  r = r && typeof r === "object" ? { ...r } : {};
+  for (const k of keys) {
+    const empty = r[k] == null || (Array.isArray(r[k]) && !r[k].length);
+    if (d[k] != null && empty) r[k] = d[k];
+  }
+  const out = { ...d, recipe: r };
+  for (const k of keys) delete out[k];
+  if (!Array.isArray(r.ingredients)) r.ingredients = [];
+  if (!Array.isArray(r.steps)) r.steps = [];
+  if (!Array.isArray(r.tips)) r.tips = [];
+  return out;
 }

@@ -1,6 +1,7 @@
 // 叫 Claude 分類、整理食譜、排行程
 import { env } from "./env.js";
 import { videoFrames } from "./tz_frames.js";
+import { fixRecipe } from "./tz_db.js";
 
 export const CATS = ["旅遊", "餐廳美食", "食譜", "日常生活", "穿搭美妝", "健身運動", "居家手作", "知識學習", "購物好物", "其他"];
 
@@ -77,7 +78,7 @@ const SCHEMA_ANALYZE = `請輸出這個格式的 JSON:
  "ingredients":[{"group":"主材料/醃料/醬汁/裝飾…","name":"食材","qty":數字或 null,"unit":"g/ml/大匙/小匙/顆/杯…","note":"切丁、室溫、適量…"}],
  "steps":["每一步一句,照順序"],"tips":["小技巧"]},
 "key_points":["其他重點:好物清單、知識點、穿搭單品、運動動作…沒有就空陣列"]}
-places:貼文有提到具體地點就列出來,不論分類;沒有就空陣列。lat/lng 你知道大概位置才填。recipe:只有教做菜/飲料/甜點時才填,否則 null。`;
+places:貼文有提到具體地點就列出來,不論分類;沒有就空陣列。lat/lng 你知道大概位置才填。recipe:只有教做菜/飲料/甜點時才填,否則 null。recipe 一定要是物件(不要寫成字串),ingredients、steps、tips 都要放在 recipe 裡面。食材份量沒寫就 qty 填 null,但食材名稱一定要列。`;
 
 export async function analyze(post) {
   const r = post.raw || {};
@@ -95,6 +96,8 @@ export async function analyze(post) {
     parts.push(`【附上 ${imgs.length} 張圖:第 1 張是封面,其餘是影片從頭到尾依序截下來的畫面。請把畫面上的字幕、字卡、店名、價錢、食材、步驟都讀出來一起整理】`);
   } else if (imgs.length) parts.push(`【附上 ${imgs.length} 張貼文的圖片/封面,上面的字也要讀】`);
   const out = await claude(SYS_ANALYZE, parts.join("\n\n") + "\n\n" + SCHEMA_ANALYZE, { images: imgs, maxTokens: 5000, asJson: true });
+  { const fx = fixRecipe(out); for (const k of Object.keys(out)) if (!(k in fx)) delete out[k]; Object.assign(out, fx); }
+  if (out.recipe && !out.recipe.ingredients?.length && !out.recipe.steps?.length && out.category !== "食譜") out.recipe = null;
   if (!CATS.includes(out.category)) out.category = "其他";
   out.frames_read = frames.length;
   out.places = Array.isArray(out.places) ? out.places.slice(0, 40) : [];

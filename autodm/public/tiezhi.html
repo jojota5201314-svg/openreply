@@ -644,7 +644,7 @@ async function renderSet(){
     <div class="card small"><h3 style="margin-bottom:6px">狀態</h3>
       <div>抓貼文服務(Apify):${s.apify?"✅ 已設定":"❌ 還沒設定"}</div>
       <div>AI 整理(Claude):${s.ai?"✅ 已設定":"❌ 還沒設定 —— 到 Vercel 加 ANTHROPIC_API_KEY"}</div></div>
-    <div class="row" style="justify-content:space-between"><button class="btn small" id="logout">登出</button><span class="small muted">版本 11/17 15:20</span></div>
+    <div class="row" style="justify-content:space-between"><button class="btn small" id="logout">登出</button><span class="small muted">版本 11/24 01:40</span></div>
   </div>`;
   $("#cpUrl").onclick=()=>copy(s.url);
   $("#rot").onclick=async()=>{ const r=await api("/api/tz?a=share",{method:"POST",body:{rotate:true}}).catch(e=>toast(e.message)); if(r){ s.url=r.url; toast("換好了,記得改捷徑裡的網址"); } };
