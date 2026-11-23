@@ -21,7 +21,7 @@ const ACTORS = {
   TikTok: { id: "clockworks~tiktok-scraper", input: (url) => ({ postURLs: [url], shouldDownloadVideos: false, shouldDownloadCovers: false, shouldDownloadSubtitles: false }) },
   抖音: { id: "thirdwatch~douyin-scraper", input: (url) => ({ urls: [url], maxResults: 1 }) },
   小紅書: { id: "zen-studio~rednote-note-detail-scraper", input: (url) => ({ noteUrls: [url], downloadVideos: false, downloadImages: false }) },
-  IG影片文字: { id: "tubetext~instagram-reels-transcript", input: (url) => ({ urls: [url], includeOnScreenText: true, maxReelsPerProfile: 1 }) },
+  IG影片文字: { id: "tubetext~instagram-reels-transcript", timeout: 200, memory: 2048, input: (url) => ({ urls: [url], includeOnScreenText: true, maxReelsPerProfile: 1 }) },
   臉書: { id: "apify~facebook-posts-scraper", input: (url) => ({ startUrls: [{ url }], resultsLimit: 1 }) },
   臉書影片: { id: "alpha-scraper~facebook-reels-details-scraper-pro", input: (url) => ({ startUrls: [{ url }] }) },
 };
@@ -131,16 +131,17 @@ export async function fetchPost(url) {
 async function runActor(platform, url) {
   const actor = ACTORS[platform];
   const token = env("APIFY_TOKEN");
-  const api = `https://api.apify.com/v2/acts/${actor.id}/run-sync-get-dataset-items?timeout=50&clean=true`;
+  const tsec = actor.timeout || 50;
+  const api = `https://api.apify.com/v2/acts/${actor.id}/run-sync-get-dataset-items?timeout=${tsec}&clean=true${actor.memory ? "&memory=" + actor.memory : ""}`;
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 55000);
+  const timer = setTimeout(() => ctl.abort(), (tsec + 5) * 1000);
   let res;
   try {
     res = await fetch(api, { method: "POST", signal: ctl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(actor.input(url)) });
   } catch (e) {
-    return { ok: false, platform, error: e.name === "AbortError" ? "抓太久了(超過 55 秒),再試一次" : "連不到抓取服務:" + e.message };
+    return { ok: false, platform, error: e.name === "AbortError" ? `抓太久了(超過 ${tsec + 5} 秒),再試一次` : "連不到抓取服務:" + e.message };
   } finally { clearTimeout(timer); }
   const body = await res.text();
   if (!res.ok) {
