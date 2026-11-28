@@ -58,7 +58,7 @@ export function slimPost(p) {
   return { id: p.id, created: new Date(p.created_at).getTime(), url: p.url, platform: p.platform, status: p.status, error: p.error,
     title: p.title, category: p.category, subcategory: p.subcategory, country: p.country, region: p.region, thumb: p.thumb,
     summary: d.summary || "", tags: d.tags || [], has_recipe: Boolean(d.recipe), recipe_type: d.recipe?.type || "",
-    dish: d.recipe?.dish || "", n_ing: (d.recipe?.ingredients || []).length, places: (d.places || []).map((x) => ({ ...x })) };
+    dish: d.recipe?.dish || "", n_ing: (d.recipe?.ingredients || []).length, ing: (d.recipe?.ingredients || []).map((i) => i?.name || "").filter(Boolean), places: (d.places || []).map((x) => ({ ...x })) };
 }
 
 // AI 偶爾把 recipe 寫成被截斷的字串、或把 steps/tips 放到外層 → 修回正常物件

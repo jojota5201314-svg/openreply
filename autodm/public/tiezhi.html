@@ -325,15 +325,52 @@ async function openPost(id){
   draw();
 }
 
+// 食材搜尋:同一類食材互相找得到(打「豬肉」也會找到五花、排骨、絞肉…)
+const ING_GROUPS=[
+ ["豬肉","豬","五花","梅花","里肌","豬排","排骨","絞肉","肉末","肉燥","豬腳","松阪","培根","火腿","香腸","豬油"],
+ ["牛肉","牛排","牛腱","牛小排","肥牛","牛五花","牛絞肉"],
+ ["雞肉","雞腿","雞胸","雞翅","雞柳","雞丁","全雞"],
+ ["海鮮","鮭魚","鱸魚","鯛魚","魚片","魚排","蝦","蝦仁","花枝","魷魚","透抽","蛤蜊","蛤","蚵","干貝","螃蟹","蟹"],
+ ["蛋","雞蛋","蛋黃","蛋白","鴨蛋","皮蛋"],
+ ["豆腐","板豆腐","嫩豆腐","豆干","油豆腐"],
+ ["鮮奶油","淡奶油","動物性鮮奶油"],["奶油","黃油","無鹽奶油"],["牛奶","鮮奶","牛乳"],["起司","芝士","乳酪","起士"],
+ ["高麗菜","包菜","捲心菜"],["番茄","西紅柿","小番茄","聖女果"],["蔥","青蔥","蔥花","蔥段"],["蒜","大蒜","蒜頭","蒜末"],
+ ["麵","麵條","烏龍麵","拉麵","義大利麵","意麵","米粉","冬粉"],["飯","白飯","米飯"],["地瓜","番薯","紅薯"],["馬鈴薯","土豆","洋芋"],
+ ["糖","砂糖","白砂糖","細砂糖","黑糖","冰糖"],["麵粉","低筋麵粉","中筋麵粉","高筋麵粉"]];
+function ingTerms(w){ w=w.trim(); if(!w) return []; const g=ING_GROUPS.filter(x=>x.some(k=>k===w||(w.length>=2&&k.includes(w)))); return [...new Set([w,...g.flat()])]; }
+function recipeMatch(p, words){
+  const ing=p.ing||[]; const hay=[p.dish,p.title,(p.tags||[]).join(" ")].join(" ");
+  let hit=[], ok=0;
+  for(const w of words){ const terms=ingTerms(w); const h=ing.filter(n=>terms.some(t=>n.includes(t)));
+    if(h.length||terms.some(t=>hay.includes(t))){ ok++; hit.push(...h); } }
+  return {ok, hit:[...new Set(hit)]};
+}
 function renderRecipes(){
   const list=S.posts.filter(p=>p.status==="完成" && p.has_recipe);
-  const types=counts(list.map(p=>({t:p.recipe_type||"其他"})),"t"); const t=S.rtype||""; const shown=t?list.filter(p=>(p.recipe_type||"其他")===t):list;
+  const types=counts(list.map(p=>({t:p.recipe_type||"其他"})),"t");
   $("#main").innerHTML=`<div class="stack"><div class="row" style="justify-content:space-between"><h2>食譜</h2><span class="small muted">${list.length} 道</span></div>
-    ${list.length?`<div class="chips" id="rt"><button class="chip ${!t?"on":""}" data-t="">全部</button>${types.map(([x,n])=>`<button class="chip ${t===x?"on":""}" data-t="${esc(x)}">${esc(x)}<i>${n}</i></button>`).join("")}</div>
-    <div class="grid">${shown.map(p=>`<button class="post" data-post="${p.id}"><span class="th">${p.thumb?`<img src="${esc(p.thumb)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">`:""}<span class="ic">🍳</span></span><span class="bd"><span class="tt">${esc(p.dish||p.title)}</span><span class="small muted">${esc([p.recipe_type, p.n_ing+" 樣食材"].filter(Boolean).join(" · "))}</span></span></button>`).join("")}</div>`
+    ${list.length?`<div class="card" style="padding:10px"><input id="rq" type="search" placeholder="🔍 冰箱有什麼?例:豬肉 高麗菜" value="${esc(S.rq||"")}" style="width:100%"><div class="small muted" style="margin-top:4px">可以打好幾樣,用空白隔開;打「豬肉」也會找五花、排骨、絞肉</div></div>
+    <div class="chips" id="rt"><button class="chip" data-t="">全部</button>${types.map(([x,n])=>`<button class="chip" data-t="${esc(x)}">${esc(x)}<i>${n}</i></button>`).join("")}</div>
+    <div id="rlist"></div>`
     :`<div class="card empty"><b>還沒有食譜</b>收進教做菜、甜點、飲料的貼文,會自動整理成食材和步驟放在這裡。</div>`}</div>`;
-  $("#rt") && ($("#rt").onclick=e=>{ const b=e.target.closest("[data-t]"); if(b){ S.rtype=b.dataset.t; renderRecipes(); } });
-  bindCards();
+  if(!list.length) return;
+  const draw=()=>{
+    const t=S.rtype||""; document.querySelectorAll("#rt [data-t]").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+    let shown=t?list.filter(p=>(p.recipe_type||"其他")===t):list;
+    const words=(S.rq||"").split(/[\s,，、]+/).filter(Boolean);
+    let info={};
+    if(words.length){
+      shown=shown.map(p=>({p,m:recipeMatch(p,words)})).filter(x=>x.m.ok>0).sort((a,b)=>b.m.ok-a.m.ok||b.m.hit.length-a.m.hit.length).map(x=>{info[x.p.id]=x.m; return x.p;});
+    }
+    $("#rlist").innerHTML = (words.length?`<div class="small muted" style="margin:4px 2px">找到 ${shown.length} 道${words.length>1?"(用到越多樣的排越前面)":""}</div>`:"")+
+      (shown.length?`<div class="grid">${shown.map(p=>{ const m=info[p.id]; const sub=m?(m.hit.length?"用到:"+m.hit.slice(0,4).join("、"):"名稱有提到"):[p.recipe_type, p.n_ing+" 樣食材"].filter(Boolean).join(" · ");
+        return `<button class="post" data-post="${p.id}"><span class="th">${p.thumb?`<img src="${esc(p.thumb)}" alt="" referrerpolicy="no-referrer" loading="lazy" onerror="this.remove()">`:""}<span class="ic">🍳</span></span><span class="bd"><span class="tt">${esc(p.dish||p.title)}</span><span class="small muted">${esc(sub)}</span></span></button>`; }).join("")}</div>`
+      :`<div class="card empty"><b>沒有找到</b>換個說法試試,例如「豬」「雞」「蛋」。</div>`);
+    bindCards();
+  };
+  $("#rt").onclick=e=>{ const b=e.target.closest("[data-t]"); if(b){ S.rtype=b.dataset.t; draw(); } };
+  $("#rq").oninput=e=>{ S.rq=e.target.value; draw(); };
+  draw();
 }
 
 // ---------- 行程 ----------
@@ -644,7 +681,7 @@ async function renderSet(){
     <div class="card small"><h3 style="margin-bottom:6px">狀態</h3>
       <div>抓貼文服務(Apify):${s.apify?"✅ 已設定":"❌ 還沒設定"}</div>
       <div>AI 整理(Claude):${s.ai?"✅ 已設定":"❌ 還沒設定 —— 到 Vercel 加 ANTHROPIC_API_KEY"}</div></div>
-    <div class="row" style="justify-content:space-between"><button class="btn small" id="logout">登出</button><span class="small muted">版本 11/24 01:40</span></div>
+    <div class="row" style="justify-content:space-between"><button class="btn small" id="logout">登出</button><span class="small muted">版本 11/28 18:10</span></div>
   </div>`;
   $("#cpUrl").onclick=()=>copy(s.url);
   $("#rot").onclick=async()=>{ const r=await api("/api/tz?a=share",{method:"POST",body:{rotate:true}}).catch(e=>toast(e.message)); if(r){ s.url=r.url; toast("換好了,記得改捷徑裡的網址"); } };
